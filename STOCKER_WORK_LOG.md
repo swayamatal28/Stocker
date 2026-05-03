@@ -20,3 +20,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +172
 - Cumulative LOC: 267
 
+## 03 May 2026 (Sun)
+
+- Feature: Create the monorepo folder structure
+- Recorded commit: `feat(core): the monorepo folder structure`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +173
+- Cumulative LOC: 440
+
