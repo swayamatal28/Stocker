@@ -36,3 +36,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +182
 - Cumulative LOC: 622
 
+## 05 May 2026 (Tue)
+
+- Feature: Add JSON logging and graceful shutdown
+- Recorded commit: `feat(ops): JSON logging and graceful shutdown`
+- Recorded paths: `deployments/, internal/observability/`
+- Approximate LOC: +180
+- Cumulative LOC: 802
+
