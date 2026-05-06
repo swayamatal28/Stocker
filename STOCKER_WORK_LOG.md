@@ -44,3 +44,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +180
 - Cumulative LOC: 802
 
+## 06 May 2026 (Wed)
+
+- Feature: Create shared domain models
+- Recorded commit: `feat(core): shared domain models`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +132
+- Cumulative LOC: 934
+
