@@ -52,3 +52,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +132
 - Cumulative LOC: 934
 
+## 07 May 2026 (Thu)
+
+- Feature: Connect the API to MongoDB
+- Recorded commit: `feat(data): the API to MongoDB`
+- Recorded paths: `internal/store/, internal/domain/`
+- Approximate LOC: +151
+- Cumulative LOC: 1,085
+
