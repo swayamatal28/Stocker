@@ -60,3 +60,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +151
 - Cumulative LOC: 1,085
 
+## 08 May 2026 (Fri)
+
+- Feature: Create MongoDB indexes
+- Recorded commit: `feat(data): MongoDB indexes`
+- Recorded paths: `internal/store/, internal/domain/`
+- Approximate LOC: +192
+- Cumulative LOC: 1,277
+
