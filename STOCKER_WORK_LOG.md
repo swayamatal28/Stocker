@@ -68,3 +68,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +192
 - Cumulative LOC: 1,277
 
+## 09 May 2026 (Sat)
+
+- Feature: Seed the NSE and BSE security master
+- Recorded commit: `feat(data): Seed the NSE and BSE security master`
+- Recorded paths: `internal/store/, internal/domain/`
+- Approximate LOC: +176
+- Cumulative LOC: 1,453
+
