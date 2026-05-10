@@ -76,3 +76,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +176
 - Cumulative LOC: 1,453
 
+## 10 May 2026 (Sun)
+
+- Feature: Seed delayed quotes and market indices
+- Recorded commit: `feat(data): Seed delayed quotes and market indices`
+- Recorded paths: `internal/store/, internal/domain/`
+- Approximate LOC: +174
+- Cumulative LOC: 1,627
+
