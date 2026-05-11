@@ -84,3 +84,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +174
 - Cumulative LOC: 1,627
 
+## 11 May 2026 (Mon)
+
+- Feature: Implement password hashing and password policy
+- Recorded commit: `feat(auth): password hashing and password policy`
+- Recorded paths: `internal/auth/, internal/httpapi/`
+- Approximate LOC: +169
+- Cumulative LOC: 1,796
+
