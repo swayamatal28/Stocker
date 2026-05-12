@@ -92,3 +92,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +169
 - Cumulative LOC: 1,796
 
+## 12 May 2026 (Tue)
+
+- Feature: Implement JWT access tokens and claims
+- Recorded commit: `feat(auth): JWT access tokens and claims`
+- Recorded paths: `internal/auth/, internal/httpapi/`
+- Approximate LOC: +167
+- Cumulative LOC: 1,963
+
