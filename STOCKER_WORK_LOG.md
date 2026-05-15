@@ -100,3 +100,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +167
 - Cumulative LOC: 1,963
 
+## 15 May 2026 (Fri)
+
+- Feature: Implement hashed refresh-token sessions
+- Recorded commit: `feat(auth): hashed refresh-token sessions`
+- Recorded paths: `internal/auth/, internal/httpapi/`
+- Approximate LOC: +177
+- Cumulative LOC: 2,140
+
