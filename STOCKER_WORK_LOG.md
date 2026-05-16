@@ -108,3 +108,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +177
 - Cumulative LOC: 2,140
 
+## 16 May 2026 (Sat)
+
+- Feature: Build registration, login, refresh, and logout APIs
+- Recorded commit: `feat(api): registration, login, refresh, and logout APIs`
+- Recorded paths: `apps/api/, internal/httpapi/`
+- Approximate LOC: +136
+- Cumulative LOC: 2,276
+
