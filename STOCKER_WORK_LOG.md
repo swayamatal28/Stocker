@@ -116,3 +116,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +136
 - Cumulative LOC: 2,276
 
+## 17 May 2026 (Sun)
+
+- Feature: Add secure cookies, CORS, CSP, and security headers
+- Recorded commit: `feat(auth): secure cookies, CORS, CSP, and security headers`
+- Recorded paths: `internal/auth/, internal/httpapi/`
+- Approximate LOC: +166
+- Cumulative LOC: 2,442
+
