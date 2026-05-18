@@ -124,3 +124,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +166
 - Cumulative LOC: 2,442
 
+## 18 May 2026 (Mon)
+
+- Feature: Add authentication middleware
+- Recorded commit: `feat(auth): authentication middleware`
+- Recorded paths: `internal/auth/, internal/httpapi/`
+- Approximate LOC: +166
+- Cumulative LOC: 2,608
+
