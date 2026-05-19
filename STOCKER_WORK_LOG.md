@@ -132,3 +132,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +166
 - Cumulative LOC: 2,608
 
+## 19 May 2026 (Tue)
+
+- Feature: Add liveness and readiness endpoints
+- Recorded commit: `feat(core): liveness and readiness endpoints`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +109
+- Cumulative LOC: 2,717
+
