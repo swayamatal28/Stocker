@@ -140,3 +140,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +109
 - Cumulative LOC: 2,717
 
+## 21 May 2026 (Thu)
+
+- Feature: Add Redis-backed API rate limiting
+- Recorded commit: `feat(ops): Redis-backed API rate limiting`
+- Recorded paths: `deployments/, internal/observability/`
+- Approximate LOC: +163
+- Cumulative LOC: 2,880
+
