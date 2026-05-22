@@ -148,3 +148,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +163
 - Cumulative LOC: 2,880
 
+## 22 May 2026 (Fri)
+
+- Feature: Implement security search by company, symbol, code, and ISIN
+- Recorded commit: `feat(auth): security search by company, symbol, code, and...`
+- Recorded paths: `internal/auth/, internal/httpapi/`
+- Approximate LOC: +144
+- Cumulative LOC: 3,024
+
