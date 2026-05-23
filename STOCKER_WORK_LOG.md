@@ -156,3 +156,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +144
 - Cumulative LOC: 3,024
 
+## 23 May 2026 (Sat)
+
+- Feature: Build security-detail aggregation
+- Recorded commit: `feat(auth): security-detail aggregation`
+- Recorded paths: `internal/auth/, internal/httpapi/`
+- Approximate LOC: +169
+- Cumulative LOC: 3,193
+
