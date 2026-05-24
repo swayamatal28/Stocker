@@ -164,3 +164,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +169
 - Cumulative LOC: 3,193
 
+## 24 May 2026 (Sun)
+
+- Feature: Design the atomic 10-stock watchlist model
+- Recorded commit: `feat(core): the atomic 10-stock watchlist model`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +150
+- Cumulative LOC: 3,343
+
