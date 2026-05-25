@@ -172,3 +172,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +150
 - Cumulative LOC: 3,343
 
+## 25 May 2026 (Mon)
+
+- Feature: Build watchlist list and add APIs
+- Recorded commit: `feat(api): watchlist list and add APIs`
+- Recorded paths: `apps/api/, internal/httpapi/`
+- Approximate LOC: +134
+- Cumulative LOC: 3,477
+
