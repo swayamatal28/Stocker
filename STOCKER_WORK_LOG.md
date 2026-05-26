@@ -180,3 +180,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +134
 - Cumulative LOC: 3,477
 
+## 26 May 2026 (Tue)
+
+- Feature: Build watchlist remove and pause APIs
+- Recorded commit: `feat(api): watchlist remove and pause APIs`
+- Recorded paths: `apps/api/, internal/httpapi/`
+- Approximate LOC: +191
+- Cumulative LOC: 3,668
+
