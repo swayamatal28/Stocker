@@ -188,3 +188,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +191
 - Cumulative LOC: 3,668
 
+## 27 May 2026 (Wed)
+
+- Feature: Standardize API validation and error responses
+- Recorded commit: `feat(api): API validation and error responses`
+- Recorded paths: `apps/api/, internal/httpapi/`
+- Approximate LOC: +165
+- Cumulative LOC: 3,833
+
