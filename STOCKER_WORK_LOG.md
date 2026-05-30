@@ -212,3 +212,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +169
 - Cumulative LOC: 4,163
 
+## 30 May 2026 (Sat)
+
+- Feature: Write architecture and native setup documentation
+- Recorded commit: `docs(docs): Write architecture and native setup documenta...`
+- Recorded paths: `README.md, docs/`
+- Approximate LOC: +71
+- Cumulative LOC: 4,234
+
