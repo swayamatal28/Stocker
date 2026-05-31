@@ -240,7 +240,8 @@ func (m *Mongo) ListNews(ctx context.Context, filter domain.NewsFilter) (domain.
 	if filter.PageSize < 1 || filter.PageSize > 50 {
 		filter.PageSize = 20
 	}
-	match := bson.M{}
+	cutoff := time.Now().UTC().Add(-24 * time.Hour)
+	match := bson.M{"published_at": bson.M{"$gt": cutoff}}
 	if filter.Query != "" {
 		pattern := regexp.QuoteMeta(strings.TrimSpace(filter.Query))
 		match["$or"] = bson.A{bson.M{"title": bson.M{"$regex": pattern, "$options": "i"}}, bson.M{"body_text": bson.M{"$regex": pattern, "$options": "i"}}}
@@ -261,9 +262,10 @@ func (m *Mongo) ListNews(ctx context.Context, filter domain.NewsFilter) (domain.
 		match["official"] = true
 	}
 	if filter.From != nil || filter.To != nil {
-		rangeFilter := bson.M{}
-		if filter.From != nil {
+		rangeFilter := bson.M{"$gt": cutoff}
+		if filter.From != nil && filter.From.After(cutoff) {
 			rangeFilter["$gte"] = *filter.From
+			delete(rangeFilter, "$gt")
 		}
 		if filter.To != nil {
 			rangeFilter["$lte"] = *filter.To
@@ -317,7 +319,9 @@ func (m *Mongo) NewsByID(ctx context.Context, id string) (domain.NewsArticle, er
 		return domain.NewsArticle{}, ErrNotFound
 	}
 	var document newsDocument
-	err = m.DB.Collection("normalized_articles").FindOne(ctx, bson.M{"_id": objectID}).Decode(&document)
+	err = m.DB.Collection("normalized_articles").FindOne(ctx, bson.M{
+		"_id": objectID, "published_at": bson.M{"$gt": time.Now().UTC().Add(-24 * time.Hour)},
+	}).Decode(&document)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return domain.NewsArticle{}, ErrNotFound
 	}
@@ -339,7 +343,7 @@ func (m *Mongo) NewsByID(ctx context.Context, id string) (domain.NewsArticle, er
 
 func (m *Mongo) PendingNewsEvents(ctx context.Context, limit int) ([]domain.NewsEvent, error) {
 	cur, err := m.DB.Collection("normalized_articles").Find(ctx,
-		bson.M{"outbox_state": "pending", "delivery_attempts": bson.M{"$lt": 5}},
+		bson.M{"outbox_state": "pending", "delivery_attempts": bson.M{"$lt": 5}, "published_at": bson.M{"$gt": time.Now().UTC().Add(-24 * time.Hour)}},
 		options.Find().SetSort(bson.D{{Key: "retrieved_at", Value: 1}}).SetLimit(int64(limit)))
 	if err != nil {
 		return nil, err
@@ -532,6 +536,19 @@ func (m *Mongo) MigratePhase3Intelligence(ctx context.Context) error {
 			{Key: "analysis_state", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$analysis_state", "pending"}}}},
 			{Key: "analysis_attempts", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$analysis_attempts", 0}}}},
 		}}},
+	})
+	if err != nil {
+		return err
+	}
+	// Replay only records affected by the historical local-provider bug that
+	// encoded an empty symbol list as JSON null. Republishing through the durable
+	// outbox lets the fixed analyzer process them without touching other failures.
+	_, err = m.DB.Collection("normalized_articles").UpdateMany(ctx, bson.M{
+		"analysis_state": "dead",
+		"analysis_error": bson.Regex{Pattern: "(relevantSymbols: expected array|no approved translator for detected language)", Options: "i"},
+	}, bson.M{
+		"$set":   bson.M{"analysis_state": "pending", "analysis_attempts": 0, "outbox_state": "pending", "delivery_attempts": 0},
+		"$unset": bson.M{"analysis_error": "", "analysis_failed_at": ""},
 	})
 	if err != nil {
 		return err

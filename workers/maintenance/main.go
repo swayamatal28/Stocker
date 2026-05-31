@@ -27,7 +27,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close(context.Background())
-	policy := store.RetentionPolicy{AlertDays: cfg.AlertRetentionDays, BriefingDays: cfg.BriefingRetentionDays, AuditDays: cfg.AuditRetentionDays}
+	policy := store.RetentionPolicy{Transient: cfg.TransientRetention, AlertDays: cfg.AlertRetentionDays, BriefingDays: cfg.BriefingRetentionDays, AuditDays: cfg.AuditRetentionDays}
 	run := func() bool {
 		result, runErr := db.RunRetention(ctx, time.Now().UTC(), policy)
 		if runErr != nil {

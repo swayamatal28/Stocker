@@ -19,8 +19,8 @@ import (
 
 var ErrNotFound = errors.New("not found")
 var ErrConflict = errors.New("already exists")
-var ErrWatchlistLimit = errors.New("watchlist limit is 10")
-var ErrNotWatchlisted = errors.New("alert rules can only target a stock on the user's watchlist")
+var ErrPortfolioLimit = errors.New("portfolio limit is 50 holdings")
+var ErrNotInPortfolio = errors.New("alert rules can only target a stock in the user's portfolio")
 var ErrAlertRuleLimit = errors.New("alert rule limit is 50")
 
 type Mongo struct {
@@ -97,16 +97,18 @@ type signalDocument struct {
 	Sources       []domain.Evidence `bson:"sources,omitempty"`
 }
 
-type watchlistEntry struct {
-	SecurityID   bson.ObjectID `bson:"security_id"`
-	AlertsPaused bool          `bson:"alerts_paused"`
-	AddedAt      time.Time     `bson:"added_at"`
+type portfolioEntry struct {
+	SecurityID      bson.ObjectID `bson:"security_id"`
+	Quantity        float64       `bson:"quantity"`
+	AverageBuyPrice float64       `bson:"average_buy_price"`
+	AlertsPaused    bool          `bson:"alerts_paused"`
+	AddedAt         time.Time     `bson:"added_at"`
 }
 
-type watchlistDocument struct {
+type portfolioDocument struct {
 	ID        bson.ObjectID    `bson:"_id,omitempty"`
 	UserID    bson.ObjectID    `bson:"user_id"`
-	Items     []watchlistEntry `bson:"items"`
+	Items     []portfolioEntry `bson:"items"`
 	UpdatedAt time.Time        `bson:"updated_at"`
 }
 
@@ -183,6 +185,9 @@ func (m *Mongo) MigratePhase4Market(ctx context.Context) error {
 }
 
 func (m *Mongo) EnsureIndexes(ctx context.Context) error {
+	if err := m.migrateNewsTextIndex(ctx); err != nil {
+		return err
+	}
 	indexes := map[string][]mongo.IndexModel{
 		"users": {{Keys: bson.D{{Key: "email", Value: 1}}, Options: options.Index().SetUnique(true)}},
 		"refresh_sessions": {
@@ -206,7 +211,7 @@ func (m *Mongo) EnsureIndexes(ctx context.Context) error {
 		},
 		"normalized_articles": {
 			{Keys: bson.D{{Key: "content_hash", Value: 1}}, Options: options.Index().SetUnique(true)},
-			{Keys: bson.D{{Key: "title", Value: "text"}, {Key: "body_text", Value: "text"}}},
+			{Keys: bson.D{{Key: "title", Value: "text"}, {Key: "body_text", Value: "text"}}, Options: options.Index().SetName("article_text_search").SetDefaultLanguage("none").SetLanguageOverride("search_language")},
 			{Keys: bson.D{{Key: "published_at", Value: -1}, {Key: "source_key", Value: 1}}},
 			{Keys: bson.D{{Key: "cluster_id", Value: 1}, {Key: "published_at", Value: -1}}},
 			{Keys: bson.D{{Key: "symbols", Value: 1}, {Key: "published_at", Value: -1}}},
@@ -259,6 +264,38 @@ func (m *Mongo) EnsureIndexes(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (m *Mongo) migrateNewsTextIndex(ctx context.Context) error {
+	cursor, err := m.DB.Collection("normalized_articles").Indexes().List(ctx)
+	if err != nil {
+		return fmt.Errorf("list normalized article indexes: %w", err)
+	}
+	defer cursor.Close(ctx)
+	for cursor.Next(ctx) {
+		var index struct {
+			Name             string `bson:"name"`
+			Key              bson.D `bson:"key"`
+			DefaultLanguage  string `bson:"default_language"`
+			LanguageOverride string `bson:"language_override"`
+		}
+		if err := cursor.Decode(&index); err != nil {
+			return fmt.Errorf("decode normalized article index: %w", err)
+		}
+		isText := false
+		for _, key := range index.Key {
+			if key.Key == "_fts" && key.Value == "text" {
+				isText = true
+				break
+			}
+		}
+		if isText && (index.Name != "article_text_search" || index.DefaultLanguage != "none" || index.LanguageOverride != "search_language") {
+			if err := m.DB.Collection("normalized_articles").Indexes().DropOne(ctx, index.Name); err != nil {
+				return fmt.Errorf("replace incompatible news text index %s: %w", index.Name, err)
+			}
+		}
+	}
+	return cursor.Err()
 }
 
 func (m *Mongo) Seed(ctx context.Context) error {
@@ -384,7 +421,7 @@ func (m *Mongo) RevokeRefreshSession(ctx context.Context, hash []byte) error {
 func (m *Mongo) hydrateSecurity(ctx context.Context, d securityDocument) (domain.Security, error) {
 	source := d.Source
 	if source == "" {
-		source = "Seed security master"
+		source = "Company directory"
 	}
 	s := domain.Security{ID: d.ID.Hex(), NSESymbol: d.NSESymbol, BSECode: d.BSECode, ISIN: d.ISIN, CompanyName: d.CompanyName, Sector: d.Sector, Industry: d.Industry, AsOf: d.UpdatedAt, Source: source, Signal: "Insufficient evidence"}
 	var q quoteDocument
@@ -445,20 +482,21 @@ func (m *Mongo) SecurityBySymbol(ctx context.Context, symbol string) (domain.Sec
 	return m.hydrateSecurity(ctx, d)
 }
 
-func (m *Mongo) Watchlist(ctx context.Context, uid string) ([]domain.WatchlistItem, error) {
+func (m *Mongo) Portfolio(ctx context.Context, uid string) ([]domain.PortfolioItem, domain.PortfolioSummary, error) {
 	userID, err := bson.ObjectIDFromHex(uid)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, domain.PortfolioSummary{}, ErrNotFound
 	}
-	var d watchlistDocument
+	var d portfolioDocument
 	err = m.DB.Collection("watchlists").FindOne(ctx, bson.M{"user_id": userID}).Decode(&d)
 	if errors.Is(err, mongo.ErrNoDocuments) {
-		return []domain.WatchlistItem{}, nil
+		return []domain.PortfolioItem{}, domain.PortfolioSummary{}, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, domain.PortfolioSummary{}, err
 	}
-	out := make([]domain.WatchlistItem, 0, len(d.Items))
+	out := make([]domain.PortfolioItem, 0, len(d.Items))
+	summary := domain.PortfolioSummary{}
 	for _, entry := range d.Items {
 		var sec securityDocument
 		if err := m.DB.Collection("securities").FindOne(ctx, bson.M{"_id": entry.SecurityID}).Decode(&sec); err != nil {
@@ -466,57 +504,98 @@ func (m *Mongo) Watchlist(ctx context.Context, uid string) ([]domain.WatchlistIt
 		}
 		s, err := m.hydrateSecurity(ctx, sec)
 		if err != nil {
-			return nil, err
+			return nil, summary, err
 		}
-		out = append(out, domain.WatchlistItem{Security: s, AlertsPaused: entry.AlertsPaused, AddedAt: entry.AddedAt})
+		item := domain.PortfolioItem{Security: s, Quantity: entry.Quantity, AverageBuyPrice: entry.AverageBuyPrice, AlertsPaused: entry.AlertsPaused, AddedAt: entry.AddedAt}
+		item.DetailsComplete = item.Quantity > 0 && item.AverageBuyPrice > 0
+		if item.DetailsComplete {
+			item.InvestedValue = round2(item.Quantity * item.AverageBuyPrice)
+			item.CurrentValue = round2(item.Quantity * item.Price)
+			item.PnL = round2(item.CurrentValue - item.InvestedValue)
+			if item.InvestedValue > 0 {
+				item.PnLPercent = round2(item.PnL / item.InvestedValue * 100)
+			}
+			item.DayPnL = calculateDayPnL(item.Price, item.ChangePercent, item.Quantity)
+			summary.InvestedValue += item.InvestedValue
+			summary.CurrentValue += item.CurrentValue
+			summary.DayPnL += item.DayPnL
+		}
+		out = append(out, item)
 	}
-	return out, nil
+	summary.InvestedValue = round2(summary.InvestedValue)
+	summary.HoldingCount = len(out)
+	summary.CurrentValue = round2(summary.CurrentValue)
+	summary.DayPnL = round2(summary.DayPnL)
+	summary.PnL = round2(summary.CurrentValue - summary.InvestedValue)
+	if summary.InvestedValue > 0 {
+		summary.PnLPercent = round2(summary.PnL / summary.InvestedValue * 100)
+	}
+	return out, summary, nil
 }
-func (m *Mongo) AddWatchlist(ctx context.Context, uid, symbol string) (domain.WatchlistItem, error) {
+func (m *Mongo) AddPortfolioHolding(ctx context.Context, uid, symbol string, quantity, averageBuyPrice float64) (domain.PortfolioItem, error) {
+	if quantity <= 0 || averageBuyPrice <= 0 || quantity > 1_000_000_000 || averageBuyPrice > 1_000_000_000 || math.IsNaN(quantity) || math.IsNaN(averageBuyPrice) || math.IsInf(quantity, 0) || math.IsInf(averageBuyPrice, 0) {
+		return domain.PortfolioItem{}, errors.New("quantity and average buy price must be positive numbers no greater than 1,000,000,000")
+	}
 	userID, err := bson.ObjectIDFromHex(uid)
 	if err != nil {
-		return domain.WatchlistItem{}, ErrNotFound
+		return domain.PortfolioItem{}, ErrNotFound
 	}
 	sec, err := m.securityDocumentBySymbol(ctx, symbol)
 	if err != nil {
-		return domain.WatchlistItem{}, err
+		return domain.PortfolioItem{}, err
 	}
-	entry := watchlistEntry{SecurityID: sec.ID, AddedAt: time.Now().UTC()}
-	filter := bson.M{"user_id": userID, "items.security_id": bson.M{"$ne": sec.ID}, "$expr": bson.M{"$lt": bson.A{bson.M{"$size": bson.M{"$ifNull": bson.A{"$items", bson.A{}}}}, 10}}}
+	entry := portfolioEntry{SecurityID: sec.ID, Quantity: quantity, AverageBuyPrice: averageBuyPrice, AddedAt: time.Now().UTC()}
+	filter := bson.M{"user_id": userID, "items.security_id": bson.M{"$ne": sec.ID}, "$expr": bson.M{"$lt": bson.A{bson.M{"$size": bson.M{"$ifNull": bson.A{"$items", bson.A{}}}}, 50}}}
 	result, err := m.DB.Collection("watchlists").UpdateOne(ctx, filter, bson.M{"$push": bson.M{"items": entry}, "$set": bson.M{"updated_at": time.Now().UTC()}})
 	if err != nil {
-		return domain.WatchlistItem{}, err
+		return domain.PortfolioItem{}, err
 	}
 	if result.MatchedCount == 0 {
-		_, insertErr := m.DB.Collection("watchlists").InsertOne(ctx, watchlistDocument{UserID: userID, Items: []watchlistEntry{entry}, UpdatedAt: time.Now().UTC()})
+		_, insertErr := m.DB.Collection("watchlists").InsertOne(ctx, portfolioDocument{UserID: userID, Items: []portfolioEntry{entry}, UpdatedAt: time.Now().UTC()})
 		if mongo.IsDuplicateKeyError(insertErr) {
-			var current watchlistDocument
+			var current portfolioDocument
 			if err := m.DB.Collection("watchlists").FindOne(ctx, bson.M{"user_id": userID}).Decode(&current); err != nil {
-				return domain.WatchlistItem{}, err
+				return domain.PortfolioItem{}, err
 			}
 			for _, v := range current.Items {
 				if v.SecurityID == sec.ID {
-					return domain.WatchlistItem{}, ErrConflict
+					return domain.PortfolioItem{}, ErrConflict
 				}
 			}
-			if len(current.Items) >= 10 {
-				return domain.WatchlistItem{}, ErrWatchlistLimit
+			if len(current.Items) >= 50 {
+				return domain.PortfolioItem{}, ErrPortfolioLimit
 			}
 			result, err = m.DB.Collection("watchlists").UpdateOne(ctx, filter, bson.M{"$push": bson.M{"items": entry}, "$set": bson.M{"updated_at": time.Now().UTC()}})
 			if err != nil {
-				return domain.WatchlistItem{}, err
+				return domain.PortfolioItem{}, err
 			}
 			if result.ModifiedCount == 0 {
-				return domain.WatchlistItem{}, ErrConflict
+				return domain.PortfolioItem{}, ErrConflict
 			}
 		} else if insertErr != nil {
-			return domain.WatchlistItem{}, insertErr
+			return domain.PortfolioItem{}, insertErr
 		}
 	}
 	s, err := m.hydrateSecurity(ctx, sec)
-	return domain.WatchlistItem{Security: s, AddedAt: entry.AddedAt}, err
+	item := domain.PortfolioItem{Security: s, Quantity: quantity, AverageBuyPrice: averageBuyPrice, AddedAt: entry.AddedAt, DetailsComplete: true}
+	item.InvestedValue = round2(quantity * averageBuyPrice)
+	item.CurrentValue = round2(quantity * s.Price)
+	item.PnL = round2(item.CurrentValue - item.InvestedValue)
+	if item.InvestedValue > 0 {
+		item.PnLPercent = round2(item.PnL / item.InvestedValue * 100)
+	}
+	item.DayPnL = calculateDayPnL(s.Price, s.ChangePercent, quantity)
+	return item, err
 }
-func (m *Mongo) DeleteWatchlist(ctx context.Context, uid, symbol string) error {
+
+func calculateDayPnL(currentPrice, changePercent, quantity float64) float64 {
+	if currentPrice <= 0 || quantity <= 0 || changePercent <= -100 {
+		return 0
+	}
+	previousClose := currentPrice / (1 + changePercent/100)
+	return round2((currentPrice - previousClose) * quantity)
+}
+func (m *Mongo) DeletePortfolioHolding(ctx context.Context, uid, symbol string) error {
 	userID, err := bson.ObjectIDFromHex(uid)
 	if err != nil {
 		return ErrNotFound
@@ -531,7 +610,7 @@ func (m *Mongo) DeleteWatchlist(ctx context.Context, uid, symbol string) error {
 	}
 	return err
 }
-func (m *Mongo) PauseWatchlist(ctx context.Context, uid, symbol string, paused bool) error {
+func (m *Mongo) UpdatePortfolioHolding(ctx context.Context, uid, symbol string, quantity, averageBuyPrice *float64, alertsPaused *bool) error {
 	userID, err := bson.ObjectIDFromHex(uid)
 	if err != nil {
 		return ErrNotFound
@@ -540,7 +619,26 @@ func (m *Mongo) PauseWatchlist(ctx context.Context, uid, symbol string, paused b
 	if err != nil {
 		return err
 	}
-	res, err := m.DB.Collection("watchlists").UpdateOne(ctx, bson.M{"user_id": userID, "items.security_id": sec.ID}, bson.M{"$set": bson.M{"items.$.alerts_paused": paused, "updated_at": time.Now().UTC()}})
+	set := bson.M{"updated_at": time.Now().UTC()}
+	if quantity != nil {
+		if *quantity <= 0 || *quantity > 1_000_000_000 || math.IsNaN(*quantity) || math.IsInf(*quantity, 0) {
+			return errors.New("quantity must be a positive number no greater than 1,000,000,000")
+		}
+		set["items.$.quantity"] = *quantity
+	}
+	if averageBuyPrice != nil {
+		if *averageBuyPrice <= 0 || *averageBuyPrice > 1_000_000_000 || math.IsNaN(*averageBuyPrice) || math.IsInf(*averageBuyPrice, 0) {
+			return errors.New("average buy price must be a positive number no greater than 1,000,000,000")
+		}
+		set["items.$.average_buy_price"] = *averageBuyPrice
+	}
+	if alertsPaused != nil {
+		set["items.$.alerts_paused"] = *alertsPaused
+	}
+	if len(set) == 1 {
+		return errors.New("provide quantity, average buy price, or alert preference")
+	}
+	res, err := m.DB.Collection("watchlists").UpdateOne(ctx, bson.M{"user_id": userID, "items.security_id": sec.ID}, bson.M{"$set": set})
 	if err == nil && res.ModifiedCount == 0 {
 		return ErrNotFound
 	}
@@ -604,7 +702,7 @@ func (m *Mongo) Overview(ctx context.Context) (map[string]any, error) {
 	}
 	return map[string]any{
 		"indices": indices, "sectors": sectors, "movers": movers,
-		"mood":    map[string]any{"label": label, "score": score, "explanation": "Calculated from the latest persisted breadth and average move; it is descriptive, not predictive.", "asOf": latest, "source": "Persisted provider snapshots"},
+		"mood":    map[string]any{"label": label, "score": score, "explanation": "Based on how many tracked stocks are rising or falling and the size of their moves. It describes the current market; it does not predict what happens next.", "asOf": latest, "source": "Latest available market prices"},
 		"breadth": map[string]int{"advances": advances, "declines": declines, "unchanged": unchanged},
 	}, nil
 }

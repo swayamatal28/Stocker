@@ -21,7 +21,7 @@ describe('API session recovery', () => {
             return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }));
 
-        await Promise.all([api.watchlist(), api.watchlist()]);
+        await Promise.all([api.portfolio(), api.portfolio()]);
 
         expect(refreshes).toBe(1);
     });

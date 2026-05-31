@@ -21,7 +21,7 @@ Quarterly, restore with `scripts/restore-drill.ps1`. The script refuses a target
 
 ## Retention and deletion
 
-`workers/maintenance` removes expired refresh sessions/raw payloads, old delivered/read alerts and their deliveries, revoked rules, briefings and evaluation-run summaries. Windows are configured with `ALERT_RETENTION_DAYS`, `BRIEFING_RETENTION_DAYS`, and `AUDIT_RETENTION_DAYS`. Immutable normalized evidence, analyses, signals and signal outcomes are preserved. Account erasure remains an operator-reviewed request: export the affected object IDs, delete user/watchlist/rule/alert/briefing/session records in a transaction, retain only legally required pseudonymized audit evidence, then record completion without the user's content.
+`workers/maintenance` runs immediately on worker startup and then on `MAINTENANCE_INTERVAL`. `TRANSIENT_RETENTION=24h` removes expired news and its derived analyses, evidence, signals and outcomes, plus old raw payloads, health records, dead letters, alerts, briefings, evaluation summaries and non-portfolio market snapshots. Ingestion and news queries also enforce the 24-hour boundary so an old feed entry cannot be reinserted or displayed between maintenance runs. Users, portfolio holdings, securities, active rules, source configuration and the market data required to display current holdings are preserved. Account erasure remains an operator-reviewed request: export the affected object IDs, delete user/portfolio/rule/alert/briefing/session records in a transaction, retain only legally required pseudonymized audit evidence, then record completion without the user's content.
 
 ## Keys and incident response
 

@@ -49,7 +49,7 @@ func (LocalProvider) Analyze(_ context.Context, request GroundedRequest) (json.R
 		credibility = "Project-owned synthetic fixture; not a real market announcement."
 		confidence = 70
 	}
-	symbols := append([]string(nil), request.AllowedSymbols...)
+	symbols := append(make([]string, 0, len(request.AllowedSymbols)), request.AllowedSymbols...)
 	sort.Strings(symbols)
 	analysis := domain.AIAnalysis{
 		Summary: truncateRunes(document.Title, 1200), RelevantSymbols: symbols,

@@ -61,6 +61,25 @@ func (a *retryAdapter) Fetch(context.Context, Cursor) (Batch, error) {
 	return Batch{ParserVersion: "fixture-v1", RetrievedAt: now, Next: Cursor{Since: now}, Items: []domain.SourceItem{{Title: "Saved feed item", Body: "Project-owned fixture", URL: "https://example.invalid/item", PublishedAt: now}}}, nil
 }
 
+type oldArticleAdapter struct{ now time.Time }
+
+func (a *oldArticleAdapter) ID() string                    { return "old-article-feed" }
+func (a *oldArticleAdapter) Kind() SourceKind              { return KindRSS }
+func (a *oldArticleAdapter) Health(context.Context) Health { return Health{Status: "healthy"} }
+func (a *oldArticleAdapter) Fetch(context.Context, Cursor) (Batch, error) {
+	return Batch{
+		ParserVersion: "fixture-v1",
+		RetrievedAt:   a.now,
+		Next:          Cursor{Since: a.now},
+		Items: []domain.SourceItem{{
+			Title:       "Old feed item",
+			Body:        "This item must never be persisted.",
+			URL:         "https://example.invalid/old-item",
+			PublishedAt: a.now.Add(-24 * time.Hour),
+		}},
+	}, nil
+}
+
 func TestProcessorRetriesPersistsAndPublishes(t *testing.T) {
 	repo := &processorRepo{}
 	publisher := &processorPublisher{}
@@ -76,5 +95,20 @@ func TestProcessorRetriesPersistsAndPublishes(t *testing.T) {
 	}
 	if adapter.attempts != 2 || repo.rawSaved != 1 || repo.normalizedSaved != 1 || repo.successes != 1 || publisher.published != 1 {
 		t.Fatalf("unexpected processing counts: attempts=%d raw=%d normalized=%d successes=%d published=%d", adapter.attempts, repo.rawSaved, repo.normalizedSaved, repo.successes, publisher.published)
+	}
+}
+
+func TestProcessorSkipsArticlesAtLeast24HoursOld(t *testing.T) {
+	repo := &processorRepo{}
+	policy := SourcePolicy{
+		PollInterval: time.Minute, Timeout: time.Second, RequestsPerMinute: 2, RawRetention: time.Hour,
+		Attribution: "Fixture", Licence: "Project-owned", TermsURL: "https://example.invalid/terms", AutomatedAccessAllowed: true,
+	}
+	processor := NewProcessor(repo, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), policy)
+	if _, err := processor.RunOnce(context.Background(), &oldArticleAdapter{now: time.Now().UTC()}, Cursor{}); err != nil {
+		t.Fatal(err)
+	}
+	if repo.rawSaved != 0 || repo.normalizedSaved != 0 {
+		t.Fatalf("old article was persisted: raw=%d normalized=%d", repo.rawSaved, repo.normalizedSaved)
 	}
 }

@@ -1,87 +1,165 @@
 # STOCKER
 
-STOCKER is an evidence-first research application for NSE/BSE-listed companies. It connects attributed news and exchange announcements to securities, combines them with market context, and presents explainable—not prescriptive—signals.
+STOCKER is a personal market-research application for NSE and BSE-listed companies. It combines a manually maintained portfolio with delayed market prices, company fundamentals, recent news, stock-impact summaries, alerts, and explainable research.
 
-> Informational research only. STOCKER does not place trades and its signals are not financial advice.
+> STOCKER is for informational research only. It does not connect to a broker, place trades, or provide guaranteed outcomes.
 
-## What is included
+## Features
 
-- Go 1.27 + Gin API with MongoDB, Redis, structured JSON logs, readiness/liveness, metrics endpoint, rate limits, and graceful shutdown.
-- Rotating refresh sessions, memory-only short-lived access tokens, HttpOnly-cookie session restoration, bcrypt password hashing, trusted-origin checks, and role-ready authorization.
-- React 19 with plain JavaScript/JSX, Vite, Tailwind, TanStack Query, Zustand, responsive navigation, and dark/light themes.
-- Database-enforced 10-stock watchlist with add/remove/pause/resume controls, provider-backed NSE/BSE discovery, delayed fixture fallback, persisted source health, authenticated SSE updates, and an explainable fixture signal.
-- Phase 2 RSS/Atom adapter, policy gate, durable cursors, retries, rate limits, circuit breaking, exact/near deduplication, stock links, Mongo-backed news APIs, Redis Streams outbox, dead-letter replay, saved parser fixtures, and a working News Explorer.
-- Phase 3 deterministic local intelligence provider plus an opt-in approved HTTP JSON provider, language detection/translation boundary, entity linking, prompt/model/cost metadata, dual schema validation, numeric grounding, append-only analyses/evidence/signals, Redis consumer worker, and explainability UI.
-- Phase 4 provider-neutral market service with a credential-free public-API adapter, current/day/52-week quote fields, period/unit/basis-aware fundamentals, OLA Electric identity and alias linking, sectors, breadth, movers, evidence-derived events, peers, risk flags, and a stock-detail UI with up to 10 deduplicated articles. Candles and charts are intentionally excluded from the revised scope.
-- Phase 5 watchlist-scoped event and market-threshold rules, confidence/severity gates, cluster/rule/cooldown deduplication, quiet-hour deferral, user-isolated in-app/SSE delivery, inspectable evidence, pause/revoke/read controls, and morning/closing/daily briefings.
-- Phase 6 event-time backtesting with explicit leakage rejection and sliced accuracy/precision, aggregate Prometheus metrics and trace correlation, SLO/dashboard assets, ingestion/SSE load tests, retention automation, CycloneDX SBOM/security checks, and native backup/restore/deployment runbooks.
-- Versioned `signal-v2` scoring engine with evidence gates, contradiction handling, source citations, freshness, and immutable input snapshots.
+- Portfolio tracking for up to 50 holdings with quantity and average buy price
+- Current value, invested value, daily change, and overall profit or loss
+- Manual refresh of all portfolio prices and fundamentals
+- Recent company and market news from configured publisher feeds
+- Separate news-impact lists for portfolio holdings and other affected stocks
+- Financial checks based on P/E, ROE, debt-to-equity, current ratio, operating margin, revenue growth, free cash flow, and 52-week price position
+- Optional portfolio advice through a configured model provider
+- Price and event alerts with cooldowns, quiet hours, and in-app delivery
+- Market overview, sectors, movers, related companies, and risk flags
+- Responsive interface with dark and light themes
+- Source timestamps, delay labels, and links to original material
 
-The mock provider is intentional: no third-party site is scraped and no unlicensed market values are presented as live. See [assumptions and source licensing](docs/assumptions-and-sources.md).
+## Technology
 
-## Run locally
+| Area | Technology |
+|---|---|
+| API and workers | Go with Gin |
+| Web application | React, Vite, Tailwind CSS, TanStack Query, Zustand |
+| Primary database | MongoDB |
+| Queues and live events | Redis Streams |
+| Market information | Yahoo Finance delayed endpoints |
+| News collection | RSS and Atom feeds |
+| Authentication | Short-lived access tokens and rotating HttpOnly refresh sessions |
 
-On Windows/VS Code, the complete local stack now starts with only two terminals. The backend launcher imports `.env` once, starts `mongod`, starts Redis when `redis-server` is installed, builds the API/workers, and supervises them:
+The backend includes structured logging, rate limiting, health endpoints, metrics, graceful shutdown, retry handling, deduplication, and retention jobs.
+
+## Requirements
+
+- Go 1.27 or newer
+- Node.js and npm
+- MongoDB with `mongod` available in `PATH`
+- Redis available on `localhost:6379`
+
+MongoDB and Redis must both be available for the complete application. The API can start without Redis only when `REDIS_REQUIRED=false`, but background news ingestion, analysis queues, distributed rate limiting, and live updates will be unavailable.
+
+## Local setup
+
+Create `.env` from `.env.example` and replace placeholder values where required. Do not commit `.env` or any real credentials.
+
+Install the frontend packages once:
 
 ```powershell
+cd C:\Users\Swayam\Desktop\Stocker
+npm install --prefix apps/web
+```
+
+Start the backend from the project root:
+
+```powershell
+cd C:\Users\Swayam\Desktop\Stocker
 go run main.go
 ```
 
-In the second terminal, start the web application:
+The backend launcher loads `.env`, starts MongoDB when needed, checks Redis, builds the API and workers, and supervises the processes. Runtime files and logs are stored under `data/` and `.cache/runtime/`.
+
+Start the frontend in a second terminal, also from the project root:
 
 ```powershell
+cd C:\Users\Swayam\Desktop\Stocker
 npm run dev
 ```
 
-Open <http://localhost:5173>. The Go launcher invokes the signed-in Windows PowerShell process with a process-scoped execution-policy bypass, so no separate `.env` or PowerShell setup command is needed. Runtime data and logs stay in ignored `data/` and `.cache/runtime/` directories. The underlying `run-backend.ps1` and `run-frontend.ps1` launchers remain available for diagnostics.
+Open <http://localhost:5173>.
 
-MongoDB must be installed with `mongod` available in `PATH`; the launcher creates `data/db` and starts it automatically when port 27017 is free. Redis on port 6379 is optional for the basic development UI. When `redis-server` is installed, the same backend command starts it and enables ingestion, analysis queues, distributed rate limiting and live events. The default `local-deterministic` AI provider is offline, costs nothing and sends no content externally.
+## Using the application
 
-Phase 4 also defaults to the offline fixture provider. To opt into the supplied experimental public endpoint, set `MARKET_PROVIDER=indian-stock-api` and explicitly set `MARKET_ALLOW_INSECURE_HTTP=true`. No API key is used or forwarded; only public symbols/search terms leave STOCKER. If the endpoint is unavailable, persisted snapshots remain labelled with their original age rather than being presented as fresh.
+1. Register with a password containing at least 12 characters.
+2. Search by company name, NSE symbol, BSE code, or ISIN.
+3. Add a holding with its quantity and average buy price.
+4. Use **Refresh** in the header to update every portfolio holding and reload the visible website data.
+5. Select a holding to review its price, fundamentals, financial checks, risks, related companies, news, and optional portfolio advice.
 
-Phase 5 evaluates active alert rules every `ALERT_EVALUATION_INTERVAL` (one minute by default) and immediately after rule creation or resumption. In-app delivery is enabled; browser, email and Telegram preferences remain unavailable until the user explicitly consents to a destination and an operator configures a provider. No notification destination is collected by the current build.
+The refresh result reports how many holdings were updated. If a provider request fails, the previous value keeps its original timestamp and is not presented as newly refreshed. Outside market hours, the latest available value will normally be the most recent closing or traded price.
 
-For multiple approved news feeds, set `INGEST_SOURCES_JSON` to a JSON array following [the disabled candidate register](configs/news-sources.example.json). Every enabled source must first have `automatedAccessAllowed`, `robotsChecked`, attribution, licence, terms, rate, timeout, retention, and policy-expiry values reviewed. The worker gives every feed an independent schedule and cursor.
+## Data behavior
 
-Open <http://localhost:5173>, register with a password of at least 12 characters, search for `OLAELEC`, `RELIANCE`, `HDFCBANK`, `INFY`, `TCS`, `ITC`, or `LT`, and add up to 10 securities. API docs are in [OpenAPI](docs/openapi.yaml).
+### Market information
+
+The default provider supplies delayed NSE quotes and published company fundamentals without an API key. Only the public stock symbol or search term is sent to the provider. Portfolio quantities, average prices, account details, cookies, application secrets, article text, and environment values are not included.
+
+Candlestick history and price charts are outside the application scope. Every displayed price includes its provider timestamp and delay status.
+
+### News
+
+News feeds are configured in [configs/news-sources.live.json](configs/news-sources.live.json). Each source has its own attribution, access policy, polling interval, rate limit, timeout, retention setting, and policy review date.
+
+Only feed-provided headlines, summaries, timestamps, and canonical links are collected. Article pages, paywalls, login barriers, and access controls are not bypassed.
+
+News is limited to a 24-hour window. Expired stories are excluded from queries, rejected during ingestion, and removed with their related analysis records by the maintenance worker. Portfolio holdings and essential application records are preserved.
+
+Runtime mock providers and demo seeding are disabled. Synthetic legacy market and news records are removed during live startup.
+
+### Portfolio advice
+
+Portfolio advice is disabled until an approved endpoint is configured. With the default placeholder configuration, the interface displays `AI advice not available`.
+
+To enable it, set:
+
+```dotenv
+AI_PROVIDER=http-json
+AI_ENDPOINT=https://your-approved-provider.example/v1/advice
+AI_API_KEY=insert your provider api key
+AI_MODEL=insert your model name
+```
+
+The advice request contains only public company information: symbol, company name, quote, fundamentals, rule-based research results, and recent public-news metadata. It excludes portfolio quantity, average buy price, profit or loss, user identity, sessions, cookies, and application secrets.
+
+## Main endpoints
+
+- `GET /health/live` - process health
+- `GET /health/ready` - database and dependency readiness
+- `GET /api/v1/portfolio` - portfolio holdings and totals
+- `POST /api/v1/refresh` - refresh every portfolio holding
+- `GET /api/v1/news` - recent news
+- `GET /api/v1/news/{id}/impact` - affected market and portfolio stocks
+- `GET /api/v1/stocks/{symbol}` - stock details and research
+- `GET /api/v1/portfolio/{symbol}/ai-advice` - optional portfolio advice
+
+The complete contract is available in [docs/openapi.yaml](docs/openapi.yaml).
 
 ## Verification
 
-```bash
-go test ./apps/api ./internal/... ./workers/...
-go vet ./apps/api ./internal/... ./workers/...
+```powershell
+go test -buildvcs=false ./apps/api ./internal/... ./workers/...
+go vet -buildvcs=false ./apps/api ./internal/... ./workers/...
 npm --prefix apps/web test -- --run
 npm --prefix apps/web run build
 ```
 
-With local MongoDB running, execute the isolated API integration flow (it creates and drops only a uniquely named test database):
+MongoDB-backed integration checks use temporary databases that are removed after each run:
 
 ```powershell
-$env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase1AuthSearchAndWatchlistFlow -count=1 -v
-$env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/intelligence -run TestCollectedItemProducesPersistedAnalysisAndSignal -count=1 -v
-$env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase4MarketAPIs -count=1 -v
-$env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase5RuleTriggersOneInspectableUserIsolatedAlert -count=1 -v
-$env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase6EventTimeEvaluationRejectsLeakedSignal -count=1 -v
+$env:STOCKER_INTEGRATION_TEST='1'
+go test -buildvcs=false ./internal/httpapi ./internal/intelligence -count=1
+```
+
+Additional checks:
+
+```powershell
 ./scripts/run-load.ps1 -BenchTime 5s
 ./scripts/security-check.ps1 -RequireExternalTools
 ```
 
-## Documentation index
+## Documentation
 
-- [Architecture and component diagram](docs/architecture.md)
-- [Assumptions and provider/licensing register](docs/assumptions-and-sources.md)
-- [Database ER model](docs/database.md)
-- [Source adapters and background jobs](docs/ingestion-and-jobs.md)
-- [AI schema and grounding contract](docs/ai-output.schema.json)
-- [Signal scoring specification](docs/signal-scoring.md)
-- [Security/compliance checklist](docs/security-compliance.md)
+- [Architecture](docs/architecture.md)
+- [Data sources and assumptions](docs/assumptions-and-sources.md)
+- [Database model](docs/database.md)
+- [Ingestion and background jobs](docs/ingestion-and-jobs.md)
+- [Analysis output schema](docs/ai-output.schema.json)
+- [Signal scoring](docs/signal-scoring.md)
+- [Security and compliance](docs/security-compliance.md)
 - [API contract](docs/openapi.yaml)
-- [Native operations, backup, and recovery](docs/operations.md)
-- [Event-time model evaluation](docs/evaluation.md)
-- [SLOs and alert policy](docs/slo.md)
-- [Load and capacity testing](docs/load-testing.md)
-- [Phase 6 security review](docs/security-review.md)
-
-## Delivery phases
-
-Phases 1–6 are implemented as working vertical slices under the revised no-candles/no-charts scope. Phase 3 can turn a collected, linked item into a schema-valid, source-cited analysis and append-only signal using the offline provider. Phase 4 defaults to transparent synthetic fixtures; the experimental public market adapter is opt-in because its upstream data rights and availability are not guaranteed. Phase 5 delivers evidence-backed in-app monitoring without collecting external notification destinations. Phase 6 adds repeatable evaluation, observability, load, security, lifecycle, recovery and native deployment evidence; external penetration testing and managed production services remain operator launch gates.
+- [Operations, backup, and recovery](docs/operations.md)
+- [Evaluation](docs/evaluation.md)
+- [Service objectives](docs/slo.md)
+- [Load testing](docs/load-testing.md)

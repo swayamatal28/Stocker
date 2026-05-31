@@ -1,0 +1,462 @@
+/*
+ * Theme 2: Trading Terminal (dark)
+ * Theme 4: Financial Newspaper (light)
+ *
+ * These rules intentionally sit after Tailwind so every screen shares one
+ * coherent visual system without changing its data or behaviour.
+ */
+
+:root {
+    --theme-bg: #0b1014;
+    --theme-panel: #10171c;
+    --theme-panel-raised: #131b21;
+    --theme-line: #2a343b;
+    --theme-text: #e8edf0;
+    --theme-muted: #98a4ad;
+    --theme-faint: #65727c;
+    --theme-accent: #f2ad24;
+    --theme-accent-soft: rgba(242, 173, 36, 0.12);
+    --theme-positive: #36d98d;
+    --theme-negative: #ff5e61;
+}
+
+html.light {
+    --theme-bg: #f4efe4;
+    --theme-panel: #fbf7ef;
+    --theme-panel-raised: #fffdf8;
+    --theme-line: #cfc3b1;
+    --theme-text: #201b17;
+    --theme-muted: #6f665e;
+    --theme-faint: #948a80;
+    --theme-accent: #7c1f2d;
+    --theme-accent-soft: rgba(124, 31, 45, 0.09);
+    --theme-positive: #087443;
+    --theme-negative: #b21f32;
+}
+
+html,
+body,
+#root,
+.stocker-shell {
+    background: var(--theme-bg);
+    color: var(--theme-text);
+}
+
+body {
+    background-image: none;
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+/* Shared structural treatment */
+.surface {
+    background: var(--theme-panel);
+    border-color: var(--theme-line);
+    box-shadow: none;
+}
+
+.shadow-glow,
+.shadow-2xl {
+    box-shadow: none;
+}
+
+.border-line,
+.border-line\/60,
+.border-line\/70,
+.border-line\/80,
+.divide-line > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--theme-line);
+}
+
+.text-slate-300 { color: color-mix(in srgb, var(--theme-text) 82%, var(--theme-muted)); }
+.text-slate-400 { color: var(--theme-muted); }
+.text-slate-500 { color: var(--theme-muted); }
+.text-slate-600 { color: var(--theme-faint); }
+.text-positive { color: var(--theme-positive); }
+.text-negative { color: var(--theme-negative); }
+.bg-ink,
+.bg-ink\/90,
+.bg-ink\/95 { background-color: var(--theme-bg); }
+.bg-positive { background-color: var(--theme-positive); }
+.bg-negative { background-color: var(--theme-negative); }
+
+input:not([type="checkbox"]),
+select,
+textarea {
+    color: var(--theme-text) !important;
+    border-color: var(--theme-line) !important;
+    background: var(--theme-panel-raised) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--theme-faint);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+    transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline-color: var(--theme-accent);
+}
+
+/* Theme 2 — Trading Terminal */
+html.dark body {
+    font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+    background: #0b1014;
+}
+
+html.dark .surface,
+html.dark .rounded-2xl,
+html.dark .rounded-xl {
+    border-radius: 3px;
+}
+
+html.dark .rounded-lg {
+    border-radius: 2px;
+}
+
+html.dark .sidebar {
+    background: #0c1216;
+    border-color: #2a343b;
+}
+
+html.dark .sidebar nav button {
+    border-left: 3px solid transparent;
+    border-radius: 0;
+}
+
+html.dark .sidebar nav button.bg-positive\/10 {
+    color: var(--theme-accent);
+    background: linear-gradient(90deg, rgba(242, 173, 36, 0.18), rgba(242, 173, 36, 0.04));
+    border-left-color: var(--theme-accent);
+}
+
+html.dark .app-header {
+    background: rgba(11, 16, 20, 0.98);
+    border-color: var(--theme-line);
+    backdrop-filter: none;
+}
+
+html.dark .header-search,
+html.dark .header-action,
+html.dark .theme-toggle {
+    background: #0e151a;
+    border-color: #344049;
+}
+
+html.dark .header-action:hover,
+html.dark .theme-toggle:hover {
+    color: var(--theme-accent);
+    border-color: var(--theme-accent);
+}
+
+html.dark .theme-accent-text,
+html.dark .theme-accent-chip {
+    color: var(--theme-accent);
+}
+
+html.dark .theme-accent-chip {
+    border-color: rgba(242, 173, 36, 0.38);
+    background: var(--theme-accent-soft);
+}
+
+html.dark .theme-accent-dot {
+    background: var(--theme-accent);
+}
+
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark .font-semibold {
+    letter-spacing: 0.005em;
+}
+
+html.dark .font-mono,
+html.dark table td:not(:first-child),
+html.dark table th:not(:first-child) {
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+html.dark thead {
+    background: #0d1419;
+}
+
+html.dark tbody tr:hover,
+html.dark .hover\:bg-white\/\[\.02\]:hover,
+html.dark .hover\:bg-white\/\[\.04\]:hover,
+html.dark .hover\:bg-white\/5:hover {
+    background: rgba(242, 173, 36, 0.045);
+}
+
+html.dark .bg-positive.text-ink,
+html.dark button.bg-positive {
+    background: var(--theme-accent);
+    color: #151006;
+}
+
+html.dark .text-cyan-300 {
+    color: #e8bb59;
+}
+
+html.dark .bg-cyan-400\/10,
+html.dark .bg-cyan-400\/15 {
+    background: var(--theme-accent-soft);
+}
+
+html.dark .grid-bg {
+    background-color: #0b1014;
+    background-image: linear-gradient(rgba(255, 255, 255, .025) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .025) 1px, transparent 1px);
+    background-size: 32px 32px;
+}
+
+html.dark .bg-gradient-to-r {
+    background: var(--theme-accent);
+    background-image: none;
+}
+
+html.dark .text-transparent.bg-clip-text {
+    color: var(--theme-accent);
+    background: none;
+    -webkit-text-fill-color: var(--theme-accent);
+}
+
+/* Theme 4 — Financial Newspaper */
+html.light body {
+    font-family: Georgia, "Times New Roman", serif;
+    background: #f4efe4;
+}
+
+html.light .stocker-shell,
+html.light input,
+html.light select,
+html.light textarea,
+html.light button,
+html.light table,
+html.light .text-xs,
+html.light .text-sm,
+html.light .text-\[9px\],
+html.light .text-\[10px\],
+html.light .text-\[11px\] {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
+}
+
+html.light h1,
+html.light h2,
+html.light h3,
+html.light .theme-editorial-title {
+    font-family: Georgia, "Times New Roman", serif;
+    color: #17120f;
+}
+
+html.light h1 {
+    font-weight: 700;
+    letter-spacing: -0.035em;
+}
+
+html.light h2,
+html.light h3 {
+    letter-spacing: -0.015em;
+}
+
+html.light .surface {
+    background: rgba(255, 253, 248, 0.58);
+    border-color: #cfc3b1;
+}
+
+html.light .surface,
+html.light .rounded-2xl,
+html.light .rounded-xl {
+    border-radius: 0;
+}
+
+html.light .rounded-lg {
+    border-radius: 1px;
+}
+
+html.light .sidebar {
+    background: #eee6d8;
+    border-right: 1px solid #bfb19e;
+}
+
+html.light .sidebar nav button {
+    border-left: 4px solid transparent;
+    border-radius: 0;
+}
+
+html.light .sidebar nav button.bg-positive\/10 {
+    color: var(--theme-accent);
+    background: var(--theme-accent-soft);
+    border-left-color: var(--theme-accent);
+}
+
+html.light .app-header {
+    background: rgba(244, 239, 228, 0.98);
+    border-bottom: 1px solid #9f9180;
+    backdrop-filter: none;
+}
+
+html.light .header-search,
+html.light .header-action,
+html.light .theme-toggle {
+    background: rgba(255, 253, 248, 0.6);
+    border-color: #bbae9c;
+}
+
+html.light .header-action:hover,
+html.light .theme-toggle:hover {
+    color: var(--theme-accent);
+    border-color: var(--theme-accent);
+}
+
+html.light .theme-accent-text,
+html.light .theme-accent-chip {
+    color: var(--theme-accent);
+}
+
+html.light .theme-accent-chip {
+    border-color: rgba(124, 31, 45, 0.38);
+    background: var(--theme-accent-soft);
+}
+
+html.light .theme-accent-dot {
+    background: var(--theme-accent);
+}
+
+html.light .font-mono,
+html.light table td:not(:first-child) {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+
+html.light thead {
+    color: #4d443c;
+    background: rgba(124, 31, 45, 0.045);
+    border-top: 1px solid #8d7e6d;
+    border-bottom: 2px solid #8d7e6d;
+}
+
+html.light tbody tr {
+    border-color: #d8cebf;
+}
+
+html.light tbody tr:hover,
+html.light .hover\:bg-white\/\[\.02\]:hover,
+html.light .hover\:bg-white\/\[\.04\]:hover,
+html.light .hover\:bg-white\/5:hover {
+    background: rgba(124, 31, 45, 0.035);
+}
+
+html.light .bg-positive.text-ink,
+html.light button.bg-positive {
+    color: #fffaf2;
+    background: var(--theme-accent);
+}
+
+html.light .text-cyan-300,
+html.light a.text-positive,
+html.light button.text-positive:not(.bg-positive) {
+    color: var(--theme-accent);
+}
+
+html.light .bg-cyan-400\/10,
+html.light .bg-cyan-400\/15 {
+    background: var(--theme-accent-soft);
+}
+
+html.light .grid-bg {
+    background-color: #f4efe4;
+    background-image: linear-gradient(rgba(72, 57, 42, .055) 1px, transparent 1px);
+    background-size: 100% 34px;
+}
+
+html.light .bg-gradient-to-r {
+    background: var(--theme-accent);
+    background-image: none;
+}
+
+html.light .text-transparent.bg-clip-text {
+    color: var(--theme-accent);
+    background: none;
+    -webkit-text-fill-color: var(--theme-accent);
+}
+
+html.light .bg-black\/65 {
+    background: rgba(32, 25, 20, 0.62);
+}
+
+html.light .text-white,
+html.light .hover\:text-white:hover,
+html.light .hover\:text-slate-200:hover {
+    color: var(--theme-text);
+}
+
+html.light .border-positive\/20,
+html.light .border-positive\/25,
+html.light .border-positive\/30,
+html.light .hover\:border-positive\/30:hover {
+    border-color: rgba(124, 31, 45, 0.42);
+}
+
+html.light .bg-positive\/5,
+html.light .bg-positive\/10,
+html.light .bg-positive\/\[\.035\],
+html.light .bg-positive\/\[\.06\] {
+    background: var(--theme-accent-soft);
+}
+
+html.light ::selection {
+    color: #fffaf2;
+    background: var(--theme-accent);
+}
+
+@media (max-width: 1023px) {
+    html.light .stocker-shell > .fixed.bottom-0 {
+        background: rgba(244, 239, 228, 0.98);
+        border-color: #9f9180;
+    }
+
+    html.dark .stocker-shell > .fixed.bottom-0 {
+        background: rgba(11, 16, 20, 0.98);
+    }
+}
+
+@media (max-width: 479px) {
+    .app-header .app-brand {
+        gap: 0.45rem;
+    }
+
+    .app-header .app-brand > div:first-child {
+        width: 1.9rem;
+        height: 1.9rem;
+    }
+
+    .app-header .app-brand > div:last-child > div:last-child {
+        display: none;
+    }
+
+    .app-header .app-brand > div:last-child > div:first-child {
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}

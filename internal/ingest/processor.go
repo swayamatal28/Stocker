@@ -17,6 +17,7 @@ const (
 	nearDuplicateWindow    = 72 * time.Hour
 	nearDuplicateThreshold = 0.82
 	maxPublishAttempts     = 5
+	maxArticleAge          = 24 * time.Hour
 )
 
 type Processor struct {
@@ -77,6 +78,15 @@ func (p *Processor) RunOnce(ctx context.Context, a Adapter, cursor Cursor) (Curs
 		}
 		if item.PublishedAt.IsZero() {
 			item.PublishedAt = item.RetrievedAt
+		}
+		retentionReference := batch.RetrievedAt
+		if retentionReference.IsZero() {
+			retentionReference = time.Now().UTC()
+		}
+		// Feeds commonly keep old entries in their payload. Do not persist an
+		// item that has already reached the application's 24-hour news window.
+		if !item.PublishedAt.After(retentionReference.Add(-maxArticleAge)) {
+			continue
 		}
 		if item.Attribution == "" {
 			item.Attribution = p.policy.Attribution

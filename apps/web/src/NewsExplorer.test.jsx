@@ -8,7 +8,7 @@ vi.mock('./api', () => ({
     api: {
         news: vi.fn(),
         newsDetail: vi.fn(),
-        newsAnalysis: vi.fn()
+        newsImpact: vi.fn()
     }
 }));
 
@@ -33,12 +33,10 @@ const article = {
     synthetic: true,
     duplicateCount: 1
 };
-const intelligence = {
-    analysis: {
-        id: 'analysis-1', provider: 'local-deterministic', model: 'stocker-grounded-rules-v1', promptVersion: 'analysis-v1', schemaVersion: 'ai-analysis-v1', usage: { costCents: 0 },
-        analysis: { eventCategory: 'capacity_expansion', confidence: 72, sentiment: 'bullish', summary: 'Capacity expansion announced.', materiality: 65, timeHorizon: 'medium term', novelty: 'new', evidence: [{ url: article.url, excerpt: article.body }] }
-    },
-    signals: [{ id: 'signal-1', symbol: 'RELIANCE', label: 'Positive setup', confidence: 70 }]
+const impact = {
+    ready: true,
+    marketImpact: [{ symbol: 'ONGC', companyName: 'Oil and Natural Gas Corporation', direction: 'bearish', explanation: 'Higher costs may pressure margins.', horizon: 'short term' }],
+    portfolioImpact: [{ symbol: 'RELIANCE', companyName: 'Reliance Industries', direction: 'bullish', explanation: 'The development may support this holding.', horizon: 'medium term' }]
 };
 
 function renderExplorer() {
@@ -50,19 +48,20 @@ describe('NewsExplorer', () => {
     beforeEach(() => {
         api.news.mockResolvedValue({ data: [article], meta: { page: 1, pageSize: 12, total: 1, totalPages: 1, syntheticOnly: true } });
         api.newsDetail.mockResolvedValue({ data: article, meta: {} });
-        api.newsAnalysis.mockResolvedValue({ data: intelligence, meta: { appendOnly: true } });
+        api.newsImpact.mockResolvedValue({ data: impact });
     });
 
-    it('labels synthetic evidence and opens attributed detail', async () => {
+    it('opens a story with separate market and portfolio impact lists', async () => {
         renderExplorer();
         expect(await screen.findByText('Synthetic fixture announcement')).toBeInTheDocument();
-        expect(screen.getAllByText('SYNTHETIC').length).toBeGreaterThan(0);
         fireEvent.click(screen.getByText('Synthetic fixture announcement'));
-        const sourceLink = await screen.findByRole('link', { name: /Open original source/ });
+        const sourceLink = await screen.findByRole('link', { name: /Read the original article/ });
         expect(api.newsDetail).toHaveBeenCalledWith(article.id);
-        expect(screen.getByText((_, element) => element?.textContent === `Attribution: ${article.attribution}`)).toBeInTheDocument();
-        expect(await screen.findByText('Grounded intelligence')).toBeInTheDocument();
-        expect(screen.getByText('Capacity expansion announced.')).toBeInTheDocument();
+        expect(await screen.findByText('Other affected stocks')).toBeInTheDocument();
+        expect(screen.getByText('Your portfolio trend')).toBeInTheDocument();
+        expect(screen.getByText('ONGC')).toBeInTheDocument();
+        expect(screen.getAllByText('RELIANCE')).toHaveLength(2);
+        expect(screen.queryByText(/confidence/i)).not.toBeInTheDocument();
         expect(sourceLink).toHaveAttribute('href', article.url);
     });
 });

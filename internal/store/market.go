@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -38,10 +39,20 @@ func (m *Mongo) UpsertMarketSecurity(ctx context.Context, nseSymbol, bseCode, is
 		filter = bson.M{"bse_code": bseCode}
 	}
 	set := bson.M{"active": true, "updated_at": time.Now().UTC()}
-	for key, value := range map[string]string{"nse_symbol": nseSymbol, "bse_code": bseCode, "isin": isin, "company_name": strings.TrimSpace(companyName), "sector": strings.TrimSpace(sector), "industry": strings.TrimSpace(industry), "source": strings.TrimSpace(source), "source_url": strings.TrimSpace(sourceURL)} {
+	for key, value := range map[string]string{"nse_symbol": nseSymbol, "bse_code": bseCode, "isin": isin, "company_name": strings.TrimSpace(companyName), "source": strings.TrimSpace(source), "source_url": strings.TrimSpace(sourceURL)} {
 		if value != "" {
 			set[key] = value
 		}
+	}
+	// Quote/search providers often omit classification and historically sent the
+	// placeholder "Unclassified". Never let that erase a useful sector already
+	// obtained from a richer directory response. A later meaningful value is
+	// still allowed to repair an incomplete record.
+	if usefulClassification(sector) {
+		set["sector"] = strings.TrimSpace(sector)
+	}
+	if usefulClassification(industry) {
+		set["industry"] = strings.TrimSpace(industry)
 	}
 	aliases := []string{}
 	companyAlias := strings.ToUpper(strings.TrimSpace(companyName))
@@ -58,6 +69,19 @@ func (m *Mongo) UpsertMarketSecurity(ctx context.Context, nseSymbol, bseCode, is
 	_, err := m.DB.Collection("securities").UpdateOne(ctx, filter, update,
 		options.UpdateOne().SetUpsert(true))
 	return err
+}
+
+func usefulClassification(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	switch strings.ToLower(value) {
+	case "unclassified", "unknown", "n/a", "na", "not available", "other":
+		return false
+	default:
+		return true
+	}
 }
 
 func (m *Mongo) SaveMarketSnapshot(ctx context.Context, symbol string, quote domain.MarketQuote, fundamentals domain.Fundamentals) error {
@@ -198,9 +222,12 @@ func (m *Mongo) SectorSnapshots(ctx context.Context) ([]domain.SectorSnapshot, e
 	}
 	result := make([]domain.SectorSnapshot, 0, len(bySector))
 	for _, entry := range bySector {
-		if entry.item.CompanyCount > 0 {
-			entry.item.AverageChange = round2(entry.changeTotal / float64(entry.item.CompanyCount))
+		// Sector performance is a price-based view. Do not render empty groups
+		// created only by an old signal or an incomplete directory record.
+		if entry.item.CompanyCount == 0 {
+			continue
 		}
+		entry.item.AverageChange = round2(entry.changeTotal / float64(entry.item.CompanyCount))
 		if entry.signalCount > 0 {
 			entry.item.AverageSentiment = round2(entry.signalTotal / float64(entry.signalCount))
 		}
@@ -315,23 +342,23 @@ func (m *Mongo) RiskFlagsBySymbol(ctx context.Context, symbol string) ([]domain.
 	}
 	flags := []domain.RiskFlag{}
 	if errors.Is(quoteErr, ErrNotFound) {
-		flags = append(flags, domain.RiskFlag{Code: "missing_market_data", Severity: "high", Title: "Market data unavailable", Explanation: "No provider snapshot is available; price-based conclusions must not be drawn."})
+		flags = append(flags, domain.RiskFlag{Code: "missing_market_data", Severity: "high", Title: "Price information unavailable", Explanation: "A recent price is not available, so no price-based outlook can be shown."})
 		return flags, nil
 	}
 	if time.Since(quote.AsOf) > 30*time.Minute {
-		flags = append(flags, domain.RiskFlag{Code: "stale_market_data", Severity: "medium", Title: "Delayed market snapshot", Explanation: "The latest price is older than 30 minutes. Always inspect the displayed source timestamp."})
+		flags = append(flags, domain.RiskFlag{Code: "stale_market_data", Severity: "medium", Title: "Price may be delayed", Explanation: "The latest price is more than 30 minutes old. Check the displayed time before relying on it."})
 	}
 	if quote.YearLow > 0 && quote.LastPrice <= quote.YearLow*1.1 {
-		flags = append(flags, domain.RiskFlag{Code: "near_year_low", Severity: "medium", Title: "Near 52-week low", Explanation: "The latest price is within 10% of the provider-reported 52-week low."})
+		flags = append(flags, domain.RiskFlag{Code: "near_year_low", Severity: "medium", Title: "Near 52-week low", Explanation: "The latest price is within 10% of its reported 52-week low."})
 	}
 	if quote.ChangePercent <= -3 {
-		flags = append(flags, domain.RiskFlag{Code: "sharp_daily_decline", Severity: "medium", Title: "Sharp daily decline", Explanation: "The provider reports a daily decline of at least 3%. Check attributed news for a cause."})
+		flags = append(flags, domain.RiskFlag{Code: "sharp_daily_decline", Severity: "medium", Title: "Sharp daily decline", Explanation: "The price has fallen by at least 3% today. Check recent company news for a possible reason."})
 	}
 	if strings.Contains(strings.ToLower(quote.Source), "experimental") {
-		flags = append(flags, domain.RiskFlag{Code: "unverified_provider", Severity: "info", Title: "Experimental data source", Explanation: "This free upstream source is not represented as licensed or guaranteed real-time."})
+		flags = append(flags, domain.RiskFlag{Code: "unverified_provider", Severity: "info", Title: "Price source limitation", Explanation: "This free price source may be delayed and does not guarantee real-time information."})
 	}
 	if fundamentals, err := m.FundamentalsBySymbol(ctx, symbol); err == nil && metricValue(fundamentals.Metrics, "eps") < 0 {
-		flags = append(flags, domain.RiskFlag{Code: "negative_eps", Severity: "medium", Title: "Negative trailing earnings", Explanation: "The latest provider snapshot reports negative trailing earnings per share."})
+		flags = append(flags, domain.RiskFlag{Code: "negative_eps", Severity: "medium", Title: "Negative recent earnings", Explanation: "The latest available figures show negative earnings per share over the past 12 months."})
 	}
 	return flags, nil
 }
@@ -347,6 +374,9 @@ func (m *Mongo) StockIntelligenceBySymbol(ctx context.Context, symbol string) (d
 	}
 	if fundamentals, fundamentalErr := m.FundamentalsBySymbol(ctx, symbol); fundamentalErr == nil {
 		result.Fundamentals = &fundamentals
+		result.Research = BuildStockResearch(result.Quote, &fundamentals)
+	} else if result.Quote != nil {
+		result.Research = BuildStockResearch(result.Quote, nil)
 	}
 	result.Peers, err = m.PeersBySymbol(ctx, symbol, 5)
 	if err != nil {
@@ -354,6 +384,112 @@ func (m *Mongo) StockIntelligenceBySymbol(ctx context.Context, symbol string) (d
 	}
 	result.RiskFlags, err = m.RiskFlagsBySymbol(ctx, symbol)
 	return result, err
+}
+
+// BuildStockResearch applies published accounting ratios and conservative,
+// explicit thresholds. It is deterministic: no model, prediction, or learned
+// weight is involved. Thresholds are context aids, not buy/sell rules.
+func BuildStockResearch(quote *domain.MarketQuote, fundamentals *domain.Fundamentals) *domain.StockResearch {
+	checks := []domain.ResearchCheck{}
+	points := 0
+	add := func(check domain.ResearchCheck, score int) {
+		checks = append(checks, check)
+		points += score
+	}
+	metric := func(key string) (domain.FundamentalMetric, bool) {
+		if fundamentals == nil {
+			return domain.FundamentalMetric{}, false
+		}
+		for _, item := range fundamentals.Metrics {
+			if item.Key == key {
+				return item, true
+			}
+		}
+		return domain.FundamentalMetric{}, false
+	}
+	status := func(value float64, positive, caution bool) (string, int) {
+		if positive {
+			return "positive", 1
+		}
+		if caution {
+			return "caution", -1
+		}
+		return "neutral", 0
+	}
+	if item, ok := metric("pe_ratio"); ok && item.Value != 0 {
+		s, score := status(item.Value, item.Value > 0 && item.Value <= 20, item.Value < 0 || item.Value > 40)
+		add(domain.ResearchCheck{Key: item.Key, Title: "Price compared with earnings", Status: s, Value: item.Value, Display: formatResearch(item.Value, "x"), Explanation: "A lower positive P/E can mean the price is modest relative to recent earnings, but useful ranges differ by industry.", Formula: "P/E = share price ÷ earnings per share"}, score)
+	}
+	if item, ok := metric("roe"); ok {
+		s, score := status(item.Value, item.Value >= 15, item.Value < 8)
+		add(domain.ResearchCheck{Key: item.Key, Title: "Return on shareholder money", Status: s, Value: item.Value, Display: formatResearch(item.Value, "%"), Explanation: "ROE shows how much profit the company generated relative to shareholder equity.", Formula: "ROE = net income ÷ shareholder equity × 100"}, score)
+	}
+	if item, ok := metric("debt_to_equity"); ok {
+		s, score := status(item.Value, item.Value <= .5, item.Value > 1.5)
+		add(domain.ResearchCheck{Key: item.Key, Title: "Debt compared with equity", Status: s, Value: item.Value, Display: formatResearch(item.Value, "x"), Explanation: "Lower debt relative to equity generally leaves more room to handle difficult periods; norms vary for banks and financial firms.", Formula: "Debt to equity = total debt ÷ shareholder equity"}, score)
+	}
+	if item, ok := metric("current_ratio"); ok {
+		s, score := status(item.Value, item.Value >= 1.2 && item.Value <= 2.5, item.Value < 1)
+		add(domain.ResearchCheck{Key: item.Key, Title: "Short-term financial cushion", Status: s, Value: item.Value, Display: formatResearch(item.Value, "x"), Explanation: "The current ratio compares assets expected within a year with obligations due within a year.", Formula: "Current ratio = current assets ÷ current liabilities"}, score)
+	}
+	if item, ok := metric("operating_margin"); ok {
+		s, score := status(item.Value, item.Value >= 15, item.Value < 8)
+		add(domain.ResearchCheck{Key: item.Key, Title: "Operating profit margin", Status: s, Value: item.Value, Display: formatResearch(item.Value, "%"), Explanation: "Operating margin shows how much operating profit remains from each rupee of revenue before interest and tax.", Formula: "Operating margin = operating income ÷ revenue × 100"}, score)
+	}
+	if item, ok := metric("revenue_growth"); ok {
+		s, score := status(item.Value, item.Value >= 10, item.Value < 0)
+		add(domain.ResearchCheck{Key: item.Key, Title: "Annual revenue trend", Status: s, Value: item.Value, Display: formatResearch(item.Value, "%"), Explanation: "This compares the latest full-year revenue with the previous full year.", Formula: "Revenue growth = (latest revenue ÷ previous revenue − 1) × 100"}, score)
+	}
+	if item, ok := metric("free_cash_flow"); ok {
+		s, score := status(item.Value, item.Value > 0, item.Value < 0)
+		add(domain.ResearchCheck{Key: item.Key, Title: "Free cash flow", Status: s, Value: item.Value, Display: formatCrores(item.Value), Explanation: "Positive free cash flow means operations and capital spending left cash available during the reported year.", Formula: "Free cash flow = operating cash flow − capital spending"}, score)
+	}
+	if quote != nil && quote.YearHigh > quote.YearLow && quote.LastPrice > 0 {
+		position := (quote.LastPrice - quote.YearLow) / (quote.YearHigh - quote.YearLow) * 100
+		s, score := status(position, position >= 25 && position <= 75, position >= 90)
+		add(domain.ResearchCheck{Key: "year_range_position", Title: "Position in 52-week range", Status: s, Value: round2(position), Display: formatResearch(position, "%"), Explanation: "This gives price context only. Being near a high or low does not by itself show whether a stock is cheap or expensive.", Formula: "Position = (price − 52-week low) ÷ (52-week high − 52-week low) × 100"}, score)
+	}
+	coverage := len(checks)
+	score := 0
+	if coverage > 0 {
+		score = int(math.Round(50 + float64(points)*50/float64(coverage)))
+		if score < 0 {
+			score = 0
+		}
+		if score > 100 {
+			score = 100
+		}
+	}
+	label := "Not enough financial data"
+	if coverage >= 3 {
+		switch {
+		case score >= 70:
+			label = "Fundamentals look strong on available checks"
+		case score >= 55:
+			label = "Fundamentals look balanced on available checks"
+		case score >= 40:
+			label = "Available fundamentals are mixed"
+		default:
+			label = "Available fundamentals need caution"
+		}
+	}
+	research := &domain.StockResearch{Score: score, Label: label, Coverage: coverage, Checks: checks, Disclaimer: "Rule-based research only. Thresholds vary by industry and this is not a buy or sell recommendation."}
+	if fundamentals != nil {
+		research.Source = fundamentals.Source
+		research.AsOf = fundamentals.AsOf
+	} else if quote != nil {
+		research.Source = quote.Source
+		research.AsOf = quote.AsOf
+	}
+	return research
+}
+
+func formatResearch(value float64, suffix string) string {
+	return fmt.Sprintf("%.2f%s", value, suffix)
+}
+
+func formatCrores(value float64) string {
+	return fmt.Sprintf("₹%.2f Cr", value/10_000_000)
 }
 
 func metricValue(metrics []domain.FundamentalMetric, key string) float64 {

@@ -53,8 +53,8 @@ func TestPhase5RuleTriggersOneInspectableUserIsolatedAlert(t *testing.T) {
 	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
 
 	token := registerPhase5User(t, client, httpServer.URL, "phase5-owner@example.com")
-	if response := doJSON(t, client, http.MethodPost, httpServer.URL+"/api/v1/watchlist", token, map[string]string{"symbol": "OLAELEC"}); response.status != http.StatusCreated {
-		t.Fatalf("add watchlist status %d: %s", response.status, response.body)
+	if response := doJSON(t, client, http.MethodPost, httpServer.URL+"/api/v1/portfolio", token, map[string]any{"symbol": "OLAELEC", "quantity": 10, "averageBuyPrice": 40}); response.status != http.StatusCreated {
+		t.Fatalf("add portfolio status %d: %s", response.status, response.body)
 	}
 	threshold := 1.0
 	create := doJSON(t, client, http.MethodPost, httpServer.URL+"/api/v1/alert-rules", token, map[string]any{"name": "OLA above one rupee", "symbol": "OLAELEC", "ruleType": "price_above", "threshold": threshold, "minimumConfidence": 80, "minimumSeverity": "low", "cooldownMinutes": 60, "channels": map[string]bool{"inApp": true}, "quietHours": map[string]any{"enabled": false}, "enabled": true})

@@ -9,7 +9,7 @@ tags:
   - {name: Market}
   - {name: Stocks}
   - {name: News}
-  - {name: Watchlist}
+  - {name: Portfolio}
   - {name: Alerts}
   - {name: Evaluation}
   - {name: System}
@@ -85,25 +85,33 @@ paths:
     get: {tags: [News], operationId: getNews, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Retained article evidence and source policy metadata, content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/NewsArticle'}, meta: {type: object}}}}}}, '404': {$ref: '#/components/responses/NotFound'}}}
   /news/{id}/analysis:
     get: {tags: [News], operationId: getNewsAnalysis, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Latest append-only schema-valid grounded analysis and linked signals, content: {application/json: {schema: {type: object}}}}, '404': {description: Analysis not available}}}
+  /news/{id}/impact:
+    get: {tags: [News, Portfolio], security: [{bearerAuth: []}], operationId: getNewsImpact, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Bullish, bearish or mixed stock impact separated into non-portfolio market stocks and current portfolio holdings; confidence is intentionally omitted}, '401': {$ref: '#/components/responses/Unauthorized'}}}
   /events:
     get: {tags: [Market], operationId: listEvents, parameters: [{name: symbol, in: query, schema: {type: string}}, {name: from, in: query, schema: {type: string, format: date-time}}], responses: {'200': {description: Event calendar derived from persisted, grounded news analyses}}}
-  /watchlist:
-    get: {tags: [Watchlist], security: [{bearerAuth: []}], operationId: getWatchlist, responses: {'200': {description: User watchlist, content: {application/json: {schema: {$ref: '#/components/schemas/SecurityList'}}}}, '401': {$ref: '#/components/responses/Unauthorized'}}
+  /portfolio:
+    get: {tags: [Portfolio], security: [{bearerAuth: []}], operationId: getPortfolio, responses: {'200': {description: Holdings with current value and profit/loss summary, content: {application/json: {schema: {$ref: '#/components/schemas/PortfolioResponse'}}}}, '401': {$ref: '#/components/responses/Unauthorized'}}}
     post:
-      tags: [Watchlist]
+      tags: [Portfolio]
       security: [{bearerAuth: []}]
-      operationId: addWatchlistStock
-      requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: false, required: [symbol], properties: {symbol: {type: string, maxLength: 24}}}}}}
-      responses: {'201': {description: Added}, '409': {$ref: '#/components/responses/Conflict'}, '422': {description: Ten-stock limit reached}}
-  /watchlist/{symbol}:
-    delete: {tags: [Watchlist], security: [{bearerAuth: []}], operationId: removeWatchlistStock, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'204': {description: Removed}}}
+      operationId: addPortfolioHolding
+      requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: false, required: [symbol, quantity, averageBuyPrice], properties: {symbol: {type: string, maxLength: 24}, quantity: {type: number, exclusiveMinimum: 0, maximum: 1000000000}, averageBuyPrice: {type: number, exclusiveMinimum: 0, maximum: 1000000000}}}}}}
+      responses: {'201': {description: Holding added}, '409': {$ref: '#/components/responses/Conflict'}, '422': {description: Fifty-holding limit reached}}
+  /portfolio/news:
+    get: {tags: [Portfolio, News], security: [{bearerAuth: []}], operationId: getPortfolioNews, responses: {'200': {description: Up to 30 recent deduplicated stories linked to portfolio holdings, content: {application/json: {schema: {$ref: '#/components/schemas/NewsList'}}}}}}
+  /refresh:
+    post: {tags: [Market, Portfolio], security: [{bearerAuth: []}], operationId: refreshEverything, responses: {'200': {description: Force-refreshes live quotes and fundamentals for every portfolio holding; clients then reload all visible data}, '401': {$ref: '#/components/responses/Unauthorized'}, '503': {description: Live market refresh unavailable}}}
+  /portfolio/{symbol}:
+    delete: {tags: [Portfolio], security: [{bearerAuth: []}], operationId: removePortfolioHolding, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'204': {description: Holding removed}}}
     patch:
-      tags: [Watchlist]
+      tags: [Portfolio]
       security: [{bearerAuth: []}]
-      operationId: pauseWatchlistAlerts
+      operationId: updatePortfolioHolding
       parameters: [{$ref: '#/components/parameters/Symbol'}]
-      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [alertsPaused], properties: {alertsPaused: {type: boolean}}}}}}
+      requestBody: {required: true, content: {application/json: {schema: {type: object, minProperties: 1, properties: {quantity: {type: number, exclusiveMinimum: 0}, averageBuyPrice: {type: number, exclusiveMinimum: 0}, alertsPaused: {type: boolean}}}}}}
       responses: {'200': {description: Updated}}
+  /portfolio/{symbol}/ai-advice:
+    get: {tags: [Portfolio], security: [{bearerAuth: []}], operationId: getPortfolioAIAdvice, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: Public-data-only AI stock advice, or an explicit unavailable result when no approved AI endpoint/key is configured}, '401': {$ref: '#/components/responses/Unauthorized'}, '404': {$ref: '#/components/responses/NotFound'}}}
   /alerts:
     get: {tags: [Alerts], security: [{bearerAuth: []}], operationId: listAlerts, responses: {'200': {description: Deduplicated alert history}}}
   /alerts/{id}/read:
@@ -115,7 +123,7 @@ paths:
       security: [{bearerAuth: []}]
       operationId: createAlertRule
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AlertRuleInput'}}}}
-      responses: {'201': {description: Created and immediately evaluated}, '422': {description: Stock is not watchlisted or rule limit reached}}
+      responses: {'201': {description: Created and immediately evaluated}, '422': {description: Stock is not in the portfolio or rule limit reached}}
   /alert-rules/{id}:
     patch: {tags: [Alerts], security: [{bearerAuth: []}], operationId: updateAlertRule, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Updated and evaluated when enabled}, '404': {$ref: '#/components/responses/NotFound'}}}
     delete: {tags: [Alerts], security: [{bearerAuth: []}], operationId: revokeAlertRule, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'204': {description: Delivery revoked; alert history retained}, '404': {$ref: '#/components/responses/NotFound'}}}
@@ -125,7 +133,7 @@ paths:
       security: [{bearerAuth: []}]
       operationId: getBriefing
       parameters: [{name: kind, in: query, schema: {enum: [morning, closing, daily], default: daily}}]
-      responses: {'200': {description: Evidence-grounded watchlist briefing}}
+      responses: {'200': {description: Evidence-grounded portfolio briefing}}
   /evaluation/report:
     get:
       tags: [Evaluation]
@@ -195,6 +203,16 @@ components:
         source: {type: string}
         alertsPaused: {type: boolean}
     SecurityList: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Security'}}, meta: {type: object}}}
+    PortfolioHolding:
+      allOf:
+        - {$ref: '#/components/schemas/Security'}
+        - {type: object, required: [quantity, averageBuyPrice, investedValue, currentValue, pnl, pnlPercent, dayPnl, detailsComplete, alertsPaused, addedAt], properties: {quantity: {type: number}, averageBuyPrice: {type: number}, investedValue: {type: number}, currentValue: {type: number}, pnl: {type: number}, pnlPercent: {type: number}, dayPnl: {type: number}, detailsComplete: {type: boolean}, alertsPaused: {type: boolean}, addedAt: {type: string, format: date-time}}}
+    PortfolioSummary:
+      type: object
+      properties: {investedValue: {type: number}, currentValue: {type: number}, pnl: {type: number}, pnlPercent: {type: number}, dayPnl: {type: number}, holdingCount: {type: integer}}
+    PortfolioResponse:
+      type: object
+      properties: {data: {type: array, items: {$ref: '#/components/schemas/PortfolioHolding'}}, meta: {type: object, properties: {count: {type: integer}, limit: {type: integer, const: 50}, summary: {$ref: '#/components/schemas/PortfolioSummary'}}}}
     NewsArticle:
       type: object
       required: [id, clusterId, title, body, sourceId, sourceName, sourceType, url, language, attribution, licence, parserVersion, publishedAt, retrievedAt, symbols, sectors, official, synthetic, duplicateCount]

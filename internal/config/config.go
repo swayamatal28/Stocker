@@ -25,6 +25,7 @@ type Config struct {
 	RawRetention                 int
 	IngestSourceID               string
 	IngestSourcesJSON            string
+	IngestSourcesFile            string
 	IngestFeedURL                string
 	IngestAttribution            string
 	IngestLicence                string
@@ -57,6 +58,7 @@ type Config struct {
 	MarketRefreshInterval        time.Duration
 	AlertEvaluationInterval      time.Duration
 	MaintenanceInterval          time.Duration
+	TransientRetention           time.Duration
 	AlertRetentionDays           int
 	BriefingRetentionDays        int
 	AuditRetentionDays           int
@@ -74,14 +76,15 @@ func Load() (Config, error) {
 		JWTSecret:                    env("JWT_SECRET", "development-only-secret-change-me-now"),
 		WebOrigin:                    env("WEB_ORIGIN", "http://localhost:5173"),
 		CookieSecure:                 envBool("COOKIE_SECURE", false),
-		MockProviders:                envBool("MOCK_PROVIDERS", true),
+		MockProviders:                envBool("MOCK_PROVIDERS", false),
 		RawRetention:                 envInt("RAW_RETENTION_DAYS", 7),
-		IngestSourceID:               env("INGEST_SOURCE_ID", "mock-exchange"),
+		IngestSourceID:               env("INGEST_SOURCE_ID", ""),
 		IngestSourcesJSON:            env("INGEST_SOURCES_JSON", ""),
+		IngestSourcesFile:            env("INGEST_SOURCES_FILE", ""),
 		IngestFeedURL:                env("INGEST_FEED_URL", ""),
-		IngestAttribution:            env("INGEST_ATTRIBUTION", "Synthetic STOCKER fixture"),
-		IngestLicence:                env("INGEST_LICENCE", "Project-owned test fixture"),
-		IngestTermsURL:               env("INGEST_TERMS_URL", "https://example.invalid/project-owned-fixture"),
+		IngestAttribution:            env("INGEST_ATTRIBUTION", ""),
+		IngestLicence:                env("INGEST_LICENCE", ""),
+		IngestTermsURL:               env("INGEST_TERMS_URL", ""),
 		IngestLanguage:               env("INGEST_LANGUAGE", "en"),
 		IngestOfficial:               envBool("INGEST_OFFICIAL", false),
 		IngestAutomatedAccessAllowed: envBool("INGEST_AUTOMATED_ACCESS_ALLOWED", false),
@@ -99,13 +102,23 @@ func Load() (Config, error) {
 		AIDailyBudgetCents:           envInt("AI_DAILY_BUDGET_CENTS", 100),
 		AnalysisConsumer:             env("ANALYSIS_CONSUMER", "analysis-local-1"),
 		AnalysisMaxAttempts:          envInt("ANALYSIS_MAX_ATTEMPTS", 5),
-		MarketProvider:               env("MARKET_PROVIDER", "fixture"),
-		MarketEndpoint:               env("MARKET_ENDPOINT", "http://65.0.104.9"),
+		MarketProvider:               env("MARKET_PROVIDER", "yahoo-finance"),
+		MarketEndpoint:               env("MARKET_ENDPOINT", "https://query1.finance.yahoo.com"),
 		MarketAllowInsecureHTTP:      envBool("MARKET_ALLOW_INSECURE_HTTP", false),
 		AlertRetentionDays:           envInt("ALERT_RETENTION_DAYS", 365),
 		BriefingRetentionDays:        envInt("BRIEFING_RETENTION_DAYS", 90),
 		AuditRetentionDays:           envInt("AUDIT_RETENTION_DAYS", 730),
 		OTELExporterEndpoint:         env("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+	}
+	if strings.TrimSpace(c.IngestSourcesJSON) == "" && strings.TrimSpace(c.IngestSourcesFile) != "" {
+		contents, readErr := os.ReadFile(c.IngestSourcesFile)
+		if readErr != nil {
+			return c, fmt.Errorf("INGEST_SOURCES_FILE: %w", readErr)
+		}
+		if len(contents) > 1<<20 {
+			return c, fmt.Errorf("INGEST_SOURCES_FILE exceeds 1 MiB")
+		}
+		c.IngestSourcesJSON = string(contents)
 	}
 	if c.MockProviders {
 		c.IngestAutomatedAccessAllowed = true
@@ -149,10 +162,13 @@ func Load() (Config, error) {
 	if c.MaintenanceInterval, err = time.ParseDuration(env("MAINTENANCE_INTERVAL", "24h")); err != nil {
 		return c, fmt.Errorf("MAINTENANCE_INTERVAL: %w", err)
 	}
+	if c.TransientRetention, err = time.ParseDuration(env("TRANSIENT_RETENTION", "24h")); err != nil {
+		return c, fmt.Errorf("TRANSIENT_RETENTION: %w", err)
+	}
 	if c.AlertEvaluationInterval < 10*time.Second {
 		return c, fmt.Errorf("ALERT_EVALUATION_INTERVAL must be at least 10s")
 	}
-	if c.MaintenanceInterval < time.Hour || c.AlertRetentionDays < 1 || c.BriefingRetentionDays < 1 || c.AuditRetentionDays < 1 {
+	if c.MaintenanceInterval < time.Hour || c.TransientRetention < time.Hour || c.AlertRetentionDays < 1 || c.BriefingRetentionDays < 1 || c.AuditRetentionDays < 1 {
 		return c, fmt.Errorf("maintenance interval and retention periods are invalid")
 	}
 	if value := os.Getenv("INGEST_POLICY_EXPIRES_AT"); value != "" {
@@ -210,8 +226,8 @@ func Load() (Config, error) {
 	if c.AIMaxInputChars < 1000 || c.AIMaxOutputBytes < 1024 || c.AIDailyBudgetCents < 0 || c.AIRequestCostCents < 0 || c.AnalysisMaxAttempts < 1 {
 		return c, fmt.Errorf("AI limits and budgets are invalid")
 	}
-	if c.MarketProvider != "fixture" && c.MarketProvider != "indian-stock-api" {
-		return c, fmt.Errorf("MARKET_PROVIDER must be fixture or indian-stock-api")
+	if c.MarketProvider != "fixture" && c.MarketProvider != "indian-stock-api" && c.MarketProvider != "yahoo-finance" {
+		return c, fmt.Errorf("MARKET_PROVIDER must be fixture, indian-stock-api, or yahoo-finance")
 	}
 	if c.MarketRequestTimeout <= 0 || c.MarketRefreshInterval < time.Minute {
 		return c, fmt.Errorf("market timeout and refresh interval are invalid")
@@ -223,6 +239,12 @@ func Load() (Config, error) {
 		}
 		if endpoint.Scheme == "http" && !c.MarketAllowInsecureHTTP {
 			return c, fmt.Errorf("MARKET_ALLOW_INSECURE_HTTP must be explicitly true for a plaintext market endpoint")
+		}
+	}
+	if c.MarketProvider == "yahoo-finance" {
+		endpoint, parseErr := url.Parse(c.MarketEndpoint)
+		if parseErr != nil || endpoint.Host == "" || endpoint.Scheme != "https" {
+			return c, fmt.Errorf("MARKET_ENDPOINT must be an absolute HTTPS URL for yahoo-finance")
 		}
 	}
 	return c, nil

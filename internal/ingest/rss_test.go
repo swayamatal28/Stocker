@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -30,6 +31,17 @@ func TestParseRSSFixture(t *testing.T) {
 	}
 	if !item.PublishedAt.Equal(time.Date(2026, 9, 23, 5, 0, 0, 0, time.UTC)) {
 		t.Fatalf("unexpected published time: %s", item.PublishedAt)
+	}
+}
+
+func TestParseRSSSupportsPublisherDeclaredLatin1(t *testing.T) {
+	feed := `<?xml version="1.0" encoding="ISO-8859-1"?><rss><channel><item><guid>latin-1</guid><title>Caf` + string([]byte{0xe9}) + ` market update</title><link>https://publisher.example/article</link><description>Live publisher summary</description><pubDate>Sun, 27 Sep 2026 10:00:00 +0530</pubDate></item></channel></rss>`
+	items, err := parseFeed([]byte(feed), time.Now().UTC(), RSSAdapterConfig{Attribution: "Publisher", Licence: "Publisher RSS", Language: "en"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || !strings.Contains(items[0].Title, "Café") {
+		t.Fatalf("publisher character encoding was not decoded: %#v", items)
 	}
 }
 

@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestLiveIngestionRequiresExplicitSourcePolicy(t *testing.T) {
 	t.Setenv("MOCK_PROVIDERS", "false")
@@ -28,6 +32,7 @@ func TestMockIngestionUsesProjectOwnedApproval(t *testing.T) {
 }
 
 func TestHTTPAIProviderRequiresHTTPSInProduction(t *testing.T) {
+	t.Setenv("MOCK_PROVIDERS", "true")
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("JWT_SECRET", "this-is-a-production-length-secret-value")
 	t.Setenv("MONGODB_URI", "mongodb+srv://database.example.com/stocker")
@@ -48,6 +53,7 @@ func TestHTTPAIProviderRequiresHTTPSInProduction(t *testing.T) {
 }
 
 func TestProductionRequiresEncryptedInfrastructureConnections(t *testing.T) {
+	t.Setenv("MOCK_PROVIDERS", "true")
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("JWT_SECRET", "this-is-a-production-length-secret-value")
 	t.Setenv("COOKIE_SECURE", "true")
@@ -66,6 +72,7 @@ func TestProductionRequiresEncryptedInfrastructureConnections(t *testing.T) {
 }
 
 func TestPlaintextMarketProviderRequiresExplicitOptIn(t *testing.T) {
+	t.Setenv("MOCK_PROVIDERS", "true")
 	t.Setenv("MARKET_PROVIDER", "indian-stock-api")
 	t.Setenv("MARKET_ENDPOINT", "http://65.0.104.9")
 	t.Setenv("MARKET_ALLOW_INSECURE_HTTP", "false")
@@ -88,6 +95,23 @@ func TestMultiSourceIngestionUsesPerSourceApproval(t *testing.T) {
 	t.Setenv("INGEST_AUTOMATED_ACCESS_ALLOWED", "false")
 	if _, err := Load(); err != nil {
 		t.Fatalf("multi-source approval is validated per source: %v", err)
+	}
+}
+
+func TestIngestionSourcesCanBeLoadedFromFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sources.json")
+	if err := os.WriteFile(path, []byte(`[{"id":"publisher"}]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MOCK_PROVIDERS", "false")
+	t.Setenv("INGEST_SOURCES_JSON", "")
+	t.Setenv("INGEST_SOURCES_FILE", path)
+	config, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.IngestSourcesJSON != `[{"id":"publisher"}]` {
+		t.Fatalf("unexpected source configuration: %q", config.IngestSourcesJSON)
 	}
 }
 

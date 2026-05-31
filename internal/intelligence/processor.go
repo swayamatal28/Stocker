@@ -64,22 +64,30 @@ func (processor *Processor) Process(ctx context.Context, articleID string) (doma
 	body := truncate(article.Body, bodyLimit)
 	translationProvider := "none"
 	translationApplied := false
+	analysisLanguage := "en"
 	if detected != "en" {
-		service, ok := any(processor.provider).(translator)
-		if !ok {
-			return domain.IntelligenceOutput{}, fmt.Errorf("no approved translator for detected language %s", detected)
+		if processor.provider.Name() == "local-deterministic" {
+			// The offline rules provider can safely retain and cite untranslated
+			// source text. Unsupported vocabulary produces a conservative neutral
+			// classification rather than an invented translation.
+			analysisLanguage = detected
+		} else {
+			service, ok := any(processor.provider).(translator)
+			if !ok {
+				return domain.IntelligenceOutput{}, fmt.Errorf("no approved translator for detected language %s", detected)
+			}
+			translated, translateErr := service.Translate(ctx, title+"\n\n"+body, detected, "en")
+			if translateErr != nil {
+				return domain.IntelligenceOutput{}, fmt.Errorf("translate %s: %w", detected, translateErr)
+			}
+			title, body = "Translated source item", translated
+			translationProvider, translationApplied = processor.provider.Name(), true
 		}
-		translated, translateErr := service.Translate(ctx, title+"\n\n"+body, detected, "en")
-		if translateErr != nil {
-			return domain.IntelligenceOutput{}, fmt.Errorf("translate %s: %w", detected, translateErr)
-		}
-		title, body = "Translated source item", translated
-		translationProvider, translationApplied = processor.provider.Name(), true
 	}
 	request := ai.GroundedRequest{
 		SystemPolicy: SystemPolicy, SchemaVersion: processor.config.SchemaVersion,
 		AllowedNumericFacts: input.NumericFacts, AllowedSymbols: input.LinkedSymbols,
-		Documents: []ai.GroundingDocument{{ID: article.ID, Title: title, Text: body, URL: article.URL, Source: article.SourceName, Language: "en", PublishedAt: article.PublishedAt, Official: article.Official, Synthetic: article.Synthetic}},
+		Documents: []ai.GroundingDocument{{ID: article.ID, Title: title, Text: body, URL: article.URL, Source: article.SourceName, Language: analysisLanguage, PublishedAt: article.PublishedAt, Official: article.Official, Synthetic: article.Synthetic}},
 	}
 	cost := processor.provider.EstimatedCostCents(request)
 	allowed, err := processor.repo.ReserveAIBudget(ctx, processor.provider.Name(), cost, processor.config.DailyBudgetCents)
@@ -105,7 +113,7 @@ func (processor *Processor) Process(ctx context.Context, articleID string) (doma
 	output := domain.IntelligenceOutput{Analysis: domain.AnalysisRecord{
 		ArticleID: article.ID, Provider: processor.provider.Name(), Model: processor.provider.Model(),
 		PromptVersion: processor.config.PromptVersion, PromptHash: fmt.Sprintf("%x", promptHash[:]), PromptText: SystemPolicy, SchemaVersion: processor.config.SchemaVersion,
-		DetectedLanguage: detected, AnalysisLanguage: "en", TranslationProvider: translationProvider, TranslationApplied: translationApplied,
+		DetectedLanguage: detected, AnalysisLanguage: analysisLanguage, TranslationProvider: translationProvider, TranslationApplied: translationApplied,
 		Analysis: analysis, Usage: domain.AIUsage{InputUnits: approximateUnits(title + body), OutputUnits: approximateUnits(string(raw)), CostCents: cost}, CreatedAt: now,
 	}}
 	for _, symbol := range analysis.RelevantSymbols {

@@ -9,13 +9,16 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"github.com/stocker-app/stocker/internal/ai"
 	alerting "github.com/stocker-app/stocker/internal/alerts"
 	"github.com/stocker-app/stocker/internal/auth"
 	"github.com/stocker-app/stocker/internal/config"
@@ -33,6 +36,7 @@ type Server struct {
 	auth       *auth.Service
 	hub        *Hub
 	market     *market.Service
+	advisor    *ai.PortfolioAdvisor
 	alerting   *alerting.Service
 	evaluation *evaluation.Service
 	telemetry  *observability.Registry
@@ -53,6 +57,12 @@ func New(cfg config.Config, db *store.Mongo, rdb *redis.Client, log *slog.Logger
 	}
 	hub := NewHub()
 	s := &Server{cfg: cfg, db: db, redis: rdb, auth: auth.New(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, db), hub: hub, market: marketService, telemetry: observability.NewRegistry(), log: log, cancel: cancel}
+	if cfg.AIProvider == "http-json" {
+		s.advisor, err = ai.NewPortfolioAdvisor(cfg.AIEndpoint, cfg.AIAPIKey, cfg.AIModel, cfg.AIRequestTimeout, cfg.AIMaxOutputBytes)
+		if err != nil {
+			log.Info("portfolio_ai_advice_unavailable", "reason", err.Error())
+		}
+	}
 	s.tracing, err = observability.NewTracing(ctx, cfg.OTELExporterEndpoint)
 	if err != nil {
 		log.Error("tracing_initialization_failed", "error", err)
@@ -113,10 +123,20 @@ func (s *Server) routes() *gin.Engine {
 	protected.Use(s.requireAuth())
 	protected.GET("/auth/me", s.me)
 	protected.GET("/stream", s.stream)
-	protected.GET("/watchlist", s.watchlist)
-	protected.POST("/watchlist", s.addWatchlist)
-	protected.DELETE("/watchlist/:symbol", s.deleteWatchlist)
-	protected.PATCH("/watchlist/:symbol", s.pauseWatchlist)
+	protected.POST("/refresh", s.refreshEverything)
+	protected.GET("/portfolio", s.portfolio)
+	protected.POST("/portfolio", s.addPortfolioHolding)
+	protected.PATCH("/portfolio/:symbol", s.updatePortfolioHolding)
+	protected.DELETE("/portfolio/:symbol", s.deletePortfolioHolding)
+	protected.GET("/portfolio/news", s.portfolioNews)
+	protected.GET("/portfolio/:symbol/ai-advice", s.portfolioAIAdvice)
+	protected.GET("/news/:id/impact", s.newsImpact)
+	// Legacy aliases keep older clients functional while the product moves from
+	// a watchlist to quantity-and-cost portfolio holdings.
+	protected.GET("/watchlist", s.portfolio)
+	protected.POST("/watchlist", s.addPortfolioHolding)
+	protected.PATCH("/watchlist/:symbol", s.updatePortfolioHolding)
+	protected.DELETE("/watchlist/:symbol", s.deletePortfolioHolding)
 	protected.GET("/alerts", s.alerts)
 	protected.PATCH("/alerts/:id/read", s.markAlertRead)
 	protected.GET("/alert-rules", s.alertRules)
@@ -492,17 +512,84 @@ func (s *Server) marketProviderName() string {
 	return s.market.ProviderName()
 }
 
-func (s *Server) watchlist(c *gin.Context) {
-	items, err := s.db.Watchlist(c, c.GetString(string(userIDKey)))
+func (s *Server) portfolio(c *gin.Context) {
+	items, summary, err := s.db.Portfolio(c, c.GetString(string(userIDKey)))
 	if err != nil {
 		fail(c, s.log, err)
 		return
 	}
-	c.JSON(200, gin.H{"data": items, "meta": gin.H{"count": len(items), "limit": 10}})
+	c.JSON(200, gin.H{"data": items, "meta": gin.H{"count": len(items), "limit": 50, "summary": summary}})
 }
-func (s *Server) addWatchlist(c *gin.Context) {
+
+func (s *Server) refreshEverything(c *gin.Context) {
+	if s.market == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Live market refresh is unavailable."})
+		return
+	}
+	items, _, err := s.db.Portfolio(c, c.GetString(string(userIDKey)))
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	symbols := make([]string, 0, len(items))
+	seen := map[string]bool{}
+	for _, item := range items {
+		symbol := strings.ToUpper(strings.TrimSpace(defaultSymbol(item.NSESymbol, item.BSECode)))
+		if symbol != "" && !seen[symbol] {
+			seen[symbol] = true
+			symbols = append(symbols, symbol)
+		}
+	}
+
+	// Keep upstream traffic bounded even when a portfolio contains all 50
+	// allowed holdings. Each refresh updates both the quote and fundamentals.
+	semaphore := make(chan struct{}, 4)
+	results := make(chan error, len(symbols))
+	var group sync.WaitGroup
+	for _, symbol := range symbols {
+		symbol := symbol
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			select {
+			case semaphore <- struct{}{}:
+				defer func() { <-semaphore }()
+			case <-c.Request.Context().Done():
+				results <- c.Request.Context().Err()
+				return
+			}
+			err := s.market.Refresh(c.Request.Context(), symbol, true)
+			if err != nil {
+				s.log.Warn("manual_market_refresh_failed", "provider", s.market.ProviderName(), "symbol", symbol, "error", err)
+			}
+			results <- err
+		}()
+	}
+	group.Wait()
+	close(results)
+	failed := 0
+	for refreshErr := range results {
+		if refreshErr != nil {
+			failed++
+		}
+	}
+	refreshed := len(symbols) - failed
+	message := "Everything is up to date."
+	if len(symbols) == 0 {
+		message = "Website data reloaded. Add a portfolio stock to refresh live prices."
+	} else if failed > 0 {
+		message = fmt.Sprintf("Updated %d of %d portfolio stocks. Some live prices remain unavailable.", refreshed, len(symbols))
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{
+		"attempted": len(symbols), "refreshed": refreshed, "failed": failed,
+		"refreshedAt": time.Now().UTC(), "message": message,
+	}})
+}
+func (s *Server) addPortfolioHolding(c *gin.Context) {
 	var in struct {
-		Symbol string `json:"symbol" binding:"required,max=24"`
+		Symbol          string  `json:"symbol" binding:"required,max=24"`
+		Quantity        float64 `json:"quantity" binding:"required,gt=0,lte=1000000000"`
+		AverageBuyPrice float64 `json:"averageBuyPrice" binding:"required,gt=0,lte=1000000000"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		bad(c, err)
@@ -511,13 +598,13 @@ func (s *Server) addWatchlist(c *gin.Context) {
 	if s.market != nil {
 		s.market.RefreshBestEffort(c, in.Symbol)
 	}
-	item, err := s.db.AddWatchlist(c, c.GetString(string(userIDKey)), in.Symbol)
-	if errors.Is(err, store.ErrWatchlistLimit) {
+	item, err := s.db.AddPortfolioHolding(c, c.GetString(string(userIDKey)), in.Symbol, in.Quantity, in.AverageBuyPrice)
+	if errors.Is(err, store.ErrPortfolioLimit) {
 		c.JSON(422, gin.H{"error": err.Error()})
 		return
 	}
 	if errors.Is(err, store.ErrConflict) {
-		c.JSON(409, gin.H{"error": "stock already on watchlist"})
+		c.JSON(409, gin.H{"error": "stock already exists in your portfolio"})
 		return
 	}
 	if errors.Is(err, store.ErrNotFound) {
@@ -530,10 +617,10 @@ func (s *Server) addWatchlist(c *gin.Context) {
 	}
 	c.JSON(201, gin.H{"data": item})
 }
-func (s *Server) deleteWatchlist(c *gin.Context) {
-	err := s.db.DeleteWatchlist(c, c.GetString(string(userIDKey)), c.Param("symbol"))
+func (s *Server) deletePortfolioHolding(c *gin.Context) {
+	err := s.db.DeletePortfolioHolding(c, c.GetString(string(userIDKey)), c.Param("symbol"))
 	if errors.Is(err, store.ErrNotFound) {
-		c.JSON(404, gin.H{"error": "watchlist item not found"})
+		c.JSON(404, gin.H{"error": "portfolio holding not found"})
 		return
 	}
 	if err != nil {
@@ -542,19 +629,179 @@ func (s *Server) deleteWatchlist(c *gin.Context) {
 	}
 	c.Status(204)
 }
-func (s *Server) pauseWatchlist(c *gin.Context) {
+func (s *Server) updatePortfolioHolding(c *gin.Context) {
 	var in struct {
-		AlertsPaused bool `json:"alertsPaused"`
+		Quantity        *float64 `json:"quantity"`
+		AverageBuyPrice *float64 `json:"averageBuyPrice"`
+		AlertsPaused    *bool    `json:"alertsPaused"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {
 		bad(c, err)
 		return
 	}
-	if err := s.db.PauseWatchlist(c, c.GetString(string(userIDKey)), c.Param("symbol"), in.AlertsPaused); err != nil {
+	if err := s.db.UpdatePortfolioHolding(c, c.GetString(string(userIDKey)), c.Param("symbol"), in.Quantity, in.AverageBuyPrice, in.AlertsPaused); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "portfolio holding not found"})
+			return
+		}
+		if strings.Contains(err.Error(), "positive") || strings.Contains(err.Error(), "provide") {
+			bad(c, err)
+			return
+		}
 		fail(c, s.log, err)
 		return
 	}
-	c.JSON(200, gin.H{"data": gin.H{"symbol": c.Param("symbol"), "alertsPaused": in.AlertsPaused}})
+	c.JSON(200, gin.H{"data": gin.H{"symbol": c.Param("symbol"), "updated": true}})
+}
+
+func (s *Server) portfolioNews(c *gin.Context) {
+	items, _, err := s.db.Portfolio(c, c.GetString(string(userIDKey)))
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	byURL := map[string]domain.NewsArticle{}
+	for _, holding := range items {
+		symbol := holding.NSESymbol
+		if symbol == "" {
+			symbol = holding.BSECode
+		}
+		page, pageErr := s.db.ListNews(c, domain.NewsFilter{Stock: symbol, Page: 1, PageSize: 10})
+		if pageErr != nil {
+			fail(c, s.log, pageErr)
+			return
+		}
+		for _, article := range page.Items {
+			byURL[article.URL] = article
+		}
+	}
+	news := make([]domain.NewsArticle, 0, len(byURL))
+	for _, article := range byURL {
+		news = append(news, article)
+	}
+	sort.Slice(news, func(i, j int) bool { return news[i].PublishedAt.After(news[j].PublishedAt) })
+	if len(news) > 30 {
+		news = news[:30]
+	}
+	c.JSON(http.StatusOK, gin.H{"data": news, "meta": gin.H{"count": len(news), "portfolioOnly": true}})
+}
+
+type newsImpactItem struct {
+	Symbol      string `json:"symbol"`
+	CompanyName string `json:"companyName"`
+	Direction   string `json:"direction"`
+	Explanation string `json:"explanation"`
+	Horizon     string `json:"horizon"`
+}
+
+func (s *Server) newsImpact(c *gin.Context) {
+	output, err := s.db.AnalysisByArticle(c, c.Param("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusOK, gin.H{"data": gin.H{"marketImpact": []newsImpactItem{}, "portfolioImpact": []newsImpactItem{}, "ready": false}})
+		return
+	}
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	holdings, _, err := s.db.Portfolio(c, c.GetString(string(userIDKey)))
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	held := map[string]bool{}
+	for _, holding := range holdings {
+		held[strings.ToUpper(defaultSymbol(holding.NSESymbol, holding.BSECode))] = true
+	}
+	marketImpact := []newsImpactItem{}
+	portfolioImpact := []newsImpactItem{}
+	for _, signal := range output.Signals {
+		item := newsImpactItem{Symbol: signal.Symbol, Direction: impactDirection(signal), Horizon: signal.Horizon}
+		if len(signal.Reasons) > 0 {
+			item.Explanation = signal.Reasons[0]
+		} else {
+			item.Explanation = "The story is linked to this company, but the available evidence does not explain the effect clearly yet."
+		}
+		if security, lookupErr := s.db.SecurityBySymbol(c, signal.Symbol); lookupErr == nil {
+			item.CompanyName = security.CompanyName
+		}
+		if held[strings.ToUpper(signal.Symbol)] {
+			portfolioImpact = append(portfolioImpact, item)
+		} else {
+			marketImpact = append(marketImpact, item)
+		}
+	}
+	sort.Slice(marketImpact, func(i, j int) bool { return marketImpact[i].Symbol < marketImpact[j].Symbol })
+	sort.Slice(portfolioImpact, func(i, j int) bool { return portfolioImpact[i].Symbol < portfolioImpact[j].Symbol })
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"marketImpact": marketImpact, "portfolioImpact": portfolioImpact, "ready": true}})
+}
+
+func impactDirection(signal domain.Signal) string {
+	label := strings.ToLower(signal.Label)
+	switch {
+	case signal.Strength > 10 || strings.Contains(label, "positive") || strings.Contains(label, "bullish"):
+		return "bullish"
+	case signal.Strength < -10 || strings.Contains(label, "negative") || strings.Contains(label, "bearish"):
+		return "bearish"
+	default:
+		return "mixed"
+	}
+}
+
+func defaultSymbol(primary, fallback string) string {
+	if primary != "" {
+		return primary
+	}
+	return fallback
+}
+
+func (s *Server) portfolioAIAdvice(c *gin.Context) {
+	symbol := strings.ToUpper(strings.TrimSpace(c.Param("symbol")))
+	inPortfolio, _, err := s.db.PortfolioAlertState(c, c.GetString(string(userIDKey)), symbol)
+	if errors.Is(err, store.ErrNotFound) || !inPortfolio {
+		c.JSON(http.StatusOK, gin.H{"data": gin.H{"available": false, "message": "AI advice is available only for stocks in your portfolio."}})
+		return
+	}
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	if s.advisor == nil {
+		c.JSON(http.StatusOK, gin.H{"data": gin.H{"available": false, "message": "AI advice not available. Add an approved AI API key and endpoint to enable it."}})
+		return
+	}
+	if s.market != nil {
+		s.market.RefreshBestEffort(c, symbol)
+	}
+	stock, err := s.db.StockIntelligenceBySymbol(c, symbol)
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	page, err := s.db.ListNews(c, domain.NewsFilter{Stock: symbol, Page: 1, PageSize: 5})
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	news := make([]ai.PortfolioAdviceNewsItem, 0, len(page.Items))
+	for _, article := range page.Items {
+		news = append(news, ai.PortfolioAdviceNewsItem{Title: article.Title, Source: article.SourceName, PublishedAt: article.PublishedAt})
+	}
+	advice, err := s.advisor.Advise(c, ai.PortfolioAdviceInput{
+		Symbol: symbol, CompanyName: stock.Security.CompanyName, Quote: stock.Quote,
+		Fundamentals: stock.Fundamentals, Research: stock.Research, RecentNews: news,
+	})
+	if err != nil {
+		s.log.Warn("portfolio_ai_advice_failed", "symbol", symbol, "error", err)
+		c.JSON(http.StatusOK, gin.H{"data": gin.H{"available": false, "message": "AI advice is temporarily unavailable. Please try again later."}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{
+		"available": true, "summary": advice.Summary, "outlook": advice.Outlook,
+		"strengths": advice.Strengths, "concerns": advice.Concerns, "whatToWatch": advice.WhatToWatch,
+		"generatedAt": time.Now().UTC(), "provider": s.advisor.Name(),
+		"disclaimer": "AI-generated research may be wrong. It is not personalized financial advice or a trade instruction.",
+	}})
 }
 
 func (s *Server) stream(c *gin.Context) {
@@ -811,7 +1058,7 @@ func (s *Server) createAlertRule(c *gin.Context) {
 		return
 	}
 	rule, err = s.db.CreateAlertRule(c, c.GetString(string(userIDKey)), rule)
-	if errors.Is(err, store.ErrNotWatchlisted) || errors.Is(err, store.ErrAlertRuleLimit) {
+	if errors.Is(err, store.ErrNotInPortfolio) || errors.Is(err, store.ErrAlertRuleLimit) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
@@ -880,7 +1127,7 @@ func (s *Server) updateAlertRule(c *gin.Context) {
 		return
 	}
 	rule, err = s.db.UpdateAlertRule(c, userID, rule)
-	if errors.Is(err, store.ErrNotWatchlisted) {
+	if errors.Is(err, store.ErrNotInPortfolio) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}

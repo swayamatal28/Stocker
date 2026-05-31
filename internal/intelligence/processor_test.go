@@ -63,6 +63,24 @@ func TestProcessorCreatesGroundedSignal(t *testing.T) {
 	}
 }
 
+func TestLocalProcessorKeepsUntranslatedSourceTextConservatively(t *testing.T) {
+	input := analysisInput()
+	input.Article.Title = "बाज़ार में मिला-जुला कारोबार"
+	input.Article.Body = "प्रकाशित स्रोत का संक्षिप्त विवरण।"
+	input.Article.Language = "hi"
+	input.Article.Symbols = []string{}
+	input.LinkedSymbols = []string{}
+	repo := &testRepository{input: input, budget: true}
+	processor := NewProcessor(repo, ai.LocalProvider{}, nil, Config{PromptVersion: "prompt-v1", SchemaVersion: "ai-analysis-v1", MaxInputChars: 10000, DailyBudgetCents: 100, MaxAttempts: 3})
+	output, err := processor.Process(context.Background(), input.Article.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if output.Analysis.DetectedLanguage != "hi" || output.Analysis.AnalysisLanguage != "hi" || output.Analysis.TranslationApplied {
+		t.Fatalf("unexpected language metadata: %#v", output.Analysis)
+	}
+}
+
 func TestProcessorStopsBeforeProviderWhenBudgetIsExhausted(t *testing.T) {
 	repo := &testRepository{input: analysisInput(), budget: false}
 	provider := &pricedProvider{cost: 11}

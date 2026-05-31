@@ -116,12 +116,50 @@ type StockIntelligence struct {
 	Fundamentals *Fundamentals  `json:"fundamentals,omitempty"`
 	Peers        []PeerSnapshot `json:"peers"`
 	RiskFlags    []RiskFlag     `json:"riskFlags"`
+	Research     *StockResearch `json:"research,omitempty"`
 }
 
-type WatchlistItem struct {
+type ResearchCheck struct {
+	Key         string  `json:"key"`
+	Title       string  `json:"title"`
+	Status      string  `json:"status"`
+	Value       float64 `json:"value"`
+	Display     string  `json:"display"`
+	Explanation string  `json:"explanation"`
+	Formula     string  `json:"formula"`
+}
+
+type StockResearch struct {
+	Score      int             `json:"score"`
+	Label      string          `json:"label"`
+	Coverage   int             `json:"coverage"`
+	Checks     []ResearchCheck `json:"checks"`
+	Source     string          `json:"source"`
+	AsOf       time.Time       `json:"asOf"`
+	Disclaimer string          `json:"disclaimer"`
+}
+
+type PortfolioItem struct {
 	Security
-	AlertsPaused bool      `json:"alertsPaused"`
-	AddedAt      time.Time `json:"addedAt"`
+	Quantity        float64   `json:"quantity"`
+	AverageBuyPrice float64   `json:"averageBuyPrice"`
+	InvestedValue   float64   `json:"investedValue"`
+	CurrentValue    float64   `json:"currentValue"`
+	PnL             float64   `json:"pnl"`
+	PnLPercent      float64   `json:"pnlPercent"`
+	DayPnL          float64   `json:"dayPnl"`
+	DetailsComplete bool      `json:"detailsComplete"`
+	AlertsPaused    bool      `json:"alertsPaused"`
+	AddedAt         time.Time `json:"addedAt"`
+}
+
+type PortfolioSummary struct {
+	InvestedValue float64 `json:"investedValue"`
+	CurrentValue  float64 `json:"currentValue"`
+	PnL           float64 `json:"pnl"`
+	PnLPercent    float64 `json:"pnlPercent"`
+	DayPnL        float64 `json:"dayPnl"`
+	HoldingCount  int     `json:"holdingCount"`
 }
 
 type AlertChannels struct {

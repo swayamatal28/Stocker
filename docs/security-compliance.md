@@ -8,7 +8,7 @@
 - [x] Access tokens are held only in browser memory; a single-flight refresh restores sessions and retries expired authenticated requests.
 - [x] Refresh/logout reject mismatched browser origins, and logout revokes the server-side refresh session.
 - [x] Structured MongoDB filters, escaped user search patterns, and Gin input validation.
-- [x] Redis-backed IP rate limiter; atomic database watchlist constraint.
+- [x] Redis-backed IP rate limiter; atomic database portfolio constraint.
 - [x] Authenticated SSE endpoint, Redis Streams bridge, bounded subscriber buffers, dropped-event metrics and reconnecting web client.
 - [x] Restrictive API CSP, frame denial, MIME sniffing and referrer protections. The production static host must add a web-app CSP.
 - [x] JSON structured logs without request bodies, credentials, tokens, passwords or notification destinations.

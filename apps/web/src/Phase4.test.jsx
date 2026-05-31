@@ -5,7 +5,7 @@ import MarketIntelligence from './MarketIntelligence';
 import StockDetail from './StockDetail';
 import { api } from './api';
 
-vi.mock('./api', () => ({ api: { overview: vi.fn(), sectors: vi.fn(), movers: vi.fn(), events: vi.fn(), stock: vi.fn(), stockNews: vi.fn() } }));
+vi.mock('./api', () => ({ api: { overview: vi.fn(), sectors: vi.fn(), movers: vi.fn(), events: vi.fn(), stock: vi.fn(), stockNews: vi.fn(), portfolioAIAdvice: vi.fn() } }));
 
 const wrap = component => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{component}</QueryClientProvider>);
 
@@ -31,14 +31,16 @@ describe('Phase 4 market intelligence', () => {
             security: { nseSymbol: 'OLAELEC', bseCode: '544225', isin: 'INE0LXG01040', companyName: 'Ola Electric Mobility Limited' },
             quote: { lastPrice: 42, dayLow: 40.8, dayHigh: 42.7, yearLow: 30.75, yearHigh: 102.5, volume: 1000, source: 'Fixture', isDelayed: true, synthetic: true, asOf: '2026-09-27T04:30:00Z', retrievedAt: '2026-09-27T04:45:00Z' },
             fundamentals: { metrics: [{ key: 'pe_ratio', label: 'P/E ratio', value: 0, unit: 'x', period: 'TTM', basis: 'trailing' }] },
-            peers: [], riskFlags: [{ code: 'stale', severity: 'medium', title: 'Delayed market snapshot', explanation: 'Inspect the timestamp.' }]
+            peers: [], riskFlags: [{ code: 'stale', severity: 'medium', title: 'Price may be delayed', explanation: 'Check the displayed time before relying on it.' }]
         } });
         api.stockNews.mockResolvedValue({ data: Array.from({ length: 10 }, (_, index) => ({ id: String(index), url: `https://example.invalid/${index}`, publishedAt: '2026-09-27T04:30:00Z', sourceName: 'Publisher', title: `OLA update ${index}` })) });
+        api.portfolioAIAdvice.mockResolvedValue({ data: { available: false, message: 'AI advice not available. Add an approved AI API key and endpoint to enable it.' } });
         wrap(<StockDetail symbol="OLAELEC" onClose={() => {}}/>);
         expect(await screen.findByText('Ola Electric Mobility Limited')).toBeInTheDocument();
-        expect(screen.getByText(/Fixture · delayed/)).toBeInTheDocument();
+        expect(screen.getByText('Price source:').parentElement).toHaveTextContent('Fixture · may be delayed');
         expect(screen.getByText('TTM · trailing')).toBeInTheDocument();
-        expect(screen.getByText('Delayed market snapshot')).toBeInTheDocument();
+        expect(screen.getByText('Price may be delayed')).toBeInTheDocument();
+        expect(await screen.findByText(/AI advice not available/)).toBeInTheDocument();
         expect(await screen.findAllByText(/OLA update/)).toHaveLength(10);
     });
 });

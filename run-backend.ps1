@@ -101,7 +101,7 @@ if ($redisAvailable) {
 }
 foreach ($target in $targets.GetEnumerator()) {
     $output = Join-Path $bin $target.Key
-    & $go.Source build -trimpath -o $output $target.Value
+    & $go.Source build -buildvcs=false -trimpath -o $output $target.Value
     if ($LASTEXITCODE -ne 0) { throw "Failed to build $($target.Value)" }
 }
 

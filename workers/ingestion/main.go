@@ -51,10 +51,6 @@ func main() {
 		log.Error("phase3_intelligence_migration_failed", "error", err)
 		return
 	}
-	if err := db.Seed(ctx); err != nil {
-		log.Error("seed_failed", "error", err)
-		return
-	}
 	opt, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
 		log.Error("redis_url_invalid", "error", err)

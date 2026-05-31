@@ -76,12 +76,12 @@ func (m *Mongo) CreateAlertRule(ctx context.Context, userID string, rule domain.
 	if err != nil {
 		return domain.AlertRule{}, ErrNotFound
 	}
-	watchlisted, _, err := m.WatchlistAlertState(ctx, userID, rule.Symbol)
+	inPortfolio, _, err := m.PortfolioAlertState(ctx, userID, rule.Symbol)
 	if err != nil {
 		return domain.AlertRule{}, err
 	}
-	if !watchlisted {
-		return domain.AlertRule{}, ErrNotWatchlisted
+	if !inPortfolio {
+		return domain.AlertRule{}, ErrNotInPortfolio
 	}
 	count, err := m.DB.Collection("alert_rules").CountDocuments(ctx, bson.M{"user_id": uid, "revoked_at": bson.M{"$exists": false}})
 	if err != nil {
@@ -147,12 +147,12 @@ func (m *Mongo) UpdateAlertRule(ctx context.Context, userID string, rule domain.
 	if err != nil {
 		return domain.AlertRule{}, ErrNotFound
 	}
-	watchlisted, _, err := m.WatchlistAlertState(ctx, userID, rule.Symbol)
+	inPortfolio, _, err := m.PortfolioAlertState(ctx, userID, rule.Symbol)
 	if err != nil {
 		return domain.AlertRule{}, err
 	}
-	if !watchlisted {
-		return domain.AlertRule{}, ErrNotWatchlisted
+	if !inPortfolio {
+		return domain.AlertRule{}, ErrNotInPortfolio
 	}
 	now := time.Now().UTC()
 	set := bson.M{"name": rule.Name, "symbol": rule.Symbol, "rule_type": rule.RuleType, "threshold": rule.Threshold, "event_categories": rule.EventCategories, "minimum_confidence": rule.MinimumConfidence, "minimum_severity": rule.MinimumSeverity, "cooldown_minutes": rule.CooldownMinutes, "channels": rule.Channels, "quiet_hours": rule.QuietHours, "enabled": rule.Enabled, "updated_at": now}
@@ -198,7 +198,7 @@ func (m *Mongo) ActiveAlertRules(ctx context.Context) ([]domain.AlertRule, error
 	return rules, cursor.Err()
 }
 
-func (m *Mongo) WatchlistAlertState(ctx context.Context, userID, symbol string) (watchlisted, paused bool, err error) {
+func (m *Mongo) PortfolioAlertState(ctx context.Context, userID, symbol string) (inPortfolio, paused bool, err error) {
 	uid, err := bson.ObjectIDFromHex(userID)
 	if err != nil {
 		return false, false, ErrNotFound
@@ -207,15 +207,15 @@ func (m *Mongo) WatchlistAlertState(ctx context.Context, userID, symbol string) 
 	if err != nil {
 		return false, false, err
 	}
-	var watchlist watchlistDocument
-	err = m.DB.Collection("watchlists").FindOne(ctx, bson.M{"user_id": uid, "items.security_id": security.ID}).Decode(&watchlist)
+	var portfolio portfolioDocument
+	err = m.DB.Collection("watchlists").FindOne(ctx, bson.M{"user_id": uid, "items.security_id": security.ID}).Decode(&portfolio)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return false, false, nil
 	}
 	if err != nil {
 		return false, false, err
 	}
-	for _, item := range watchlist.Items {
+	for _, item := range portfolio.Items {
 		if item.SecurityID == security.ID {
 			return true, item.AlertsPaused, nil
 		}
@@ -240,7 +240,7 @@ func (m *Mongo) AlertCandidate(ctx context.Context, rule domain.AlertRule) (doma
 		} else if math.Abs(quote.ChangePercent) >= 2 {
 			severity = "medium"
 		}
-		return domain.AlertCandidate{Symbol: security.NSESymbol, Kind: "threshold", Title: "Market threshold reached", Explanation: "The latest persisted provider snapshot satisfies the configured threshold.", Severity: severity, Confidence: 100, Price: quote.LastPrice, ChangePercent: quote.ChangePercent, SourceAsOf: quote.AsOf, Evidence: evidence, ConditionSnapshot: map[string]any{"lastPrice": quote.LastPrice, "changePercent": quote.ChangePercent, "source": quote.Source, "sourceAsOf": quote.AsOf}}, nil
+		return domain.AlertCandidate{Symbol: security.NSESymbol, Kind: "threshold", Title: "Your selected price level was reached", Explanation: "The latest available price meets the condition you selected.", Severity: severity, Confidence: 100, Price: quote.LastPrice, ChangePercent: quote.ChangePercent, SourceAsOf: quote.AsOf, Evidence: evidence, ConditionSnapshot: map[string]any{"lastPrice": quote.LastPrice, "changePercent": quote.ChangePercent, "source": quote.Source, "sourceAsOf": quote.AsOf}}, nil
 	}
 	var signal signalDocument
 	err = m.DB.Collection("signals").FindOne(ctx, bson.M{"security_id": security.ID}, options.FindOne().SetSort(bson.D{{Key: "generated_at", Value: -1}})).Decode(&signal)
@@ -399,18 +399,18 @@ func (m *Mongo) GenerateBriefing(ctx context.Context, userID, kind string, now t
 		return domain.Briefing{}, ErrNotFound
 	}
 	kind = strings.ToLower(strings.TrimSpace(kind))
-	titles := map[string]string{"morning": "Morning watchlist briefing", "closing": "Closing watchlist briefing", "daily": "Daily watchlist briefing"}
+	titles := map[string]string{"morning": "Morning portfolio briefing", "closing": "Closing portfolio briefing", "daily": "Daily portfolio briefing"}
 	title, ok := titles[kind]
 	if !ok {
 		return domain.Briefing{}, errors.New("briefing kind must be morning, closing, or daily")
 	}
-	watchlist, err := m.Watchlist(ctx, userID)
+	portfolio, _, err := m.Portfolio(ctx, userID)
 	if err != nil {
 		return domain.Briefing{}, err
 	}
 	items := []domain.BriefingItem{}
 	synthetic := false
-	for _, watched := range watchlist {
+	for _, watched := range portfolio {
 		symbol := watched.NSESymbol
 		signals, signalErr := m.SignalsBySymbol(ctx, symbol, 1)
 		if signalErr == nil && len(signals) > 0 && len(signals[0].Sources) > 0 {
@@ -423,9 +423,9 @@ func (m *Mongo) GenerateBriefing(ctx context.Context, userID, kind string, now t
 			continue
 		}
 		synthetic = synthetic || quote.Synthetic
-		items = append(items, domain.BriefingItem{Symbol: symbol, Headline: fmt.Sprintf("%s %.2f%%", symbol, quote.ChangePercent), Explanation: fmt.Sprintf("Latest persisted price %.2f %s, market as of %s.", quote.LastPrice, quote.Currency, quote.AsOf.Format(time.RFC3339)), Severity: severityFromMove(quote.ChangePercent), Confidence: 100, AsOf: quote.AsOf, Evidence: []domain.Evidence{{Label: "Timestamped market snapshot", URL: quote.SourceURL, Source: quote.Source, Excerpt: fmt.Sprintf("%s last price %.2f %s and daily change %.2f%%.", symbol, quote.LastPrice, quote.Currency, quote.ChangePercent), PublishedAt: quote.AsOf}}})
+		items = append(items, domain.BriefingItem{Symbol: symbol, Headline: fmt.Sprintf("%s %.2f%%", symbol, quote.ChangePercent), Explanation: fmt.Sprintf("Latest available price %.2f %s, as of %s.", quote.LastPrice, quote.Currency, quote.AsOf.Format(time.RFC3339)), Severity: severityFromMove(quote.ChangePercent), Confidence: 100, AsOf: quote.AsOf, Evidence: []domain.Evidence{{Label: "Market price", URL: quote.SourceURL, Source: quote.Source, Excerpt: fmt.Sprintf("%s last price %.2f %s and daily change %.2f%%.", symbol, quote.LastPrice, quote.Currency, quote.ChangePercent), PublishedAt: quote.AsOf}}})
 	}
-	summary := fmt.Sprintf("%d sourced update(s) across %d monitored companies.", len(items), len(watchlist))
+	summary := fmt.Sprintf("%d update(s) across %d portfolio holdings.", len(items), len(portfolio))
 	periodKey := now.UTC().Format("2006-01-02")
 	document := briefingDocument{UserID: uid, Kind: kind, Title: title, Summary: summary, Items: items, GeneratedAt: now.UTC(), PeriodKey: periodKey, Synthetic: synthetic}
 	update := bson.M{"$set": document, "$setOnInsert": bson.M{"created_at": now.UTC()}}

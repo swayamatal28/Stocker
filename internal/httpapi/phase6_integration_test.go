@@ -112,7 +112,7 @@ func TestPhase6EventTimeEvaluationRejectsLeakedSignal(t *testing.T) {
 	if _, err := db.DB.Collection("evaluation_runs").InsertOne(ctx, bson.M{"version": "old", "as_of": old}); err != nil {
 		t.Fatal(err)
 	}
-	retained, err := db.RunRetention(ctx, asOf, store.RetentionPolicy{AlertDays: 1, BriefingDays: 1, AuditDays: 1})
+	retained, err := db.RunRetention(ctx, asOf, store.RetentionPolicy{Transient: 24 * time.Hour, AlertDays: 1, BriefingDays: 1, AuditDays: 1})
 	if err != nil {
 		t.Fatal(err)
 	}

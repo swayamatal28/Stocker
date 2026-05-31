@@ -153,8 +153,8 @@ func (service *Service) evaluateRules(ctx context.Context, rules []domain.AlertR
 }
 
 func (service *Service) EvaluateRule(ctx context.Context, rule domain.AlertRule, now time.Time) (domain.AlertEvent, bool, error) {
-	watchlisted, paused, err := service.db.WatchlistAlertState(ctx, rule.UserID, rule.Symbol)
-	if err != nil || !watchlisted || paused || !rule.Enabled {
+	inPortfolio, paused, err := service.db.PortfolioAlertState(ctx, rule.UserID, rule.Symbol)
+	if err != nil || !inPortfolio || paused || !rule.Enabled {
 		return domain.AlertEvent{}, false, err
 	}
 	candidate, err := service.db.AlertCandidate(ctx, rule)
@@ -223,9 +223,9 @@ func (service *Service) DeliverDue(ctx context.Context, now time.Time) error {
 	}
 	for _, event := range events {
 		rule, ruleErr := service.db.AlertRuleByID(ctx, event.UserID, event.RuleID)
-		watchlisted, paused, stateErr := service.db.WatchlistAlertState(ctx, event.UserID, event.Symbol)
-		if ruleErr != nil || stateErr != nil || !rule.Enabled || !watchlisted || paused {
-			_ = service.db.CancelAlertDelivery(ctx, event.ID, "rule revoked, disabled, or watchlist alerts paused")
+		inPortfolio, paused, stateErr := service.db.PortfolioAlertState(ctx, event.UserID, event.Symbol)
+		if ruleErr != nil || stateErr != nil || !rule.Enabled || !inPortfolio || paused {
+			_ = service.db.CancelAlertDelivery(ctx, event.ID, "rule revoked, disabled, or portfolio alerts paused")
 			continue
 		}
 		delivered, fresh, deliverErr := service.db.DeliverAlert(ctx, event.ID, now.UTC())

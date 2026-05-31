@@ -21,7 +21,14 @@ type Service struct {
 
 func NewService(cfg config.Config, database *store.Mongo, log *slog.Logger) (*Service, error) {
 	var provider Provider = FixtureProvider{}
-	if cfg.MarketProvider == "indian-stock-api" {
+	switch cfg.MarketProvider {
+	case "yahoo-finance":
+		yahooProvider, err := NewYahooProvider(cfg.MarketEndpoint, cfg.MarketRequestTimeout)
+		if err != nil {
+			return nil, err
+		}
+		provider = yahooProvider
+	case "indian-stock-api":
 		httpProvider, err := NewPublicHTTPProvider(cfg.MarketEndpoint, cfg.MarketRequestTimeout)
 		if err != nil {
 			return nil, err

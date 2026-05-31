@@ -26,7 +26,11 @@ export const setSessionExpiredHandler = (handler) => { sessionExpired = handler;
 async function responseBody(response) {
     if (response.status === 204)
         return undefined;
-    return response.json().catch(() => ({}));
+    const text = await response.text();
+    if (!text)
+        return {};
+    try { return JSON.parse(text); }
+    catch { return { message: text.trim() }; }
 }
 
 async function refreshAccessToken() {
@@ -72,8 +76,12 @@ async function authorizedFetch(path, init = {}, retry = true) {
 async function request(path, init = {}) {
     const response = await authorizedFetch(path, init);
     const body = await responseBody(response);
-    if (!response.ok)
-        throw new Error(body?.error ?? `Request failed (${response.status})`);
+    if (!response.ok) {
+        const versionMismatch = response.status === 404 && path.startsWith('/portfolio')
+            ? 'Portfolio service is unavailable. Restart the backend to load the latest version.'
+            : '';
+        throw new Error(body?.error || versionMismatch || body?.message || `Request failed (${response.status})`);
+    }
     return body;
 }
 
@@ -160,10 +168,13 @@ export const api = {
 	stockFundamentals: (symbol) => request(`/stocks/${encodeURIComponent(symbol)}/fundamentals`),
 	stockPeers: (symbol) => request(`/stocks/${encodeURIComponent(symbol)}/peers`),
 	stockRiskFlags: (symbol) => request(`/stocks/${encodeURIComponent(symbol)}/risk-flags`),
-    watchlist: () => request('/watchlist'),
-    addWatchlist: (symbol) => request('/watchlist', { method: 'POST', body: JSON.stringify({ symbol }) }),
-    removeWatchlist: (symbol) => request(`/watchlist/${encodeURIComponent(symbol)}`, { method: 'DELETE' }),
-    pauseWatchlist: (symbol, alertsPaused) => request(`/watchlist/${encodeURIComponent(symbol)}`, { method: 'PATCH', body: JSON.stringify({ alertsPaused }) }),
+    portfolio: () => request('/portfolio'),
+    refreshEverything: () => request('/refresh', { method: 'POST' }),
+    portfolioNews: () => request('/portfolio/news'),
+    portfolioAIAdvice: (symbol) => request(`/portfolio/${encodeURIComponent(symbol)}/ai-advice`),
+    addPortfolio: (symbol, quantity, averageBuyPrice) => request('/portfolio', { method: 'POST', body: JSON.stringify({ symbol, quantity, averageBuyPrice }) }),
+    updatePortfolio: (symbol, patch) => request(`/portfolio/${encodeURIComponent(symbol)}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+    removePortfolio: (symbol) => request(`/portfolio/${encodeURIComponent(symbol)}`, { method: 'DELETE' }),
     alerts: (limit = 50) => request(`/alerts?limit=${encodeURIComponent(limit)}`),
     markAlertRead: (id) => request(`/alerts/${encodeURIComponent(id)}/read`, { method: 'PATCH' }),
     alertRules: () => request('/alert-rules'),
@@ -177,6 +188,7 @@ export const api = {
     news: (filters) => request(`/news${query(filters)}`),
     newsDetail: (id) => request(`/news/${encodeURIComponent(id)}`),
     newsAnalysis: (id) => request(`/news/${encodeURIComponent(id)}/analysis`),
+    newsImpact: (id) => request(`/news/${encodeURIComponent(id)}/impact`),
     stockNews: (symbol, filters) => request(`/stocks/${encodeURIComponent(symbol)}/news${query(filters)}`),
     stockSignals: (symbol) => request(`/stocks/${encodeURIComponent(symbol)}/signals`),
     sourceHealth: () => request('/system/source-health'),

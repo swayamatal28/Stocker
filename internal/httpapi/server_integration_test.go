@@ -19,7 +19,7 @@ import (
 	"github.com/stocker-app/stocker/internal/store"
 )
 
-func TestPhase1AuthSearchAndWatchlistFlow(t *testing.T) {
+func TestPhase1AuthSearchAndPortfolioFlow(t *testing.T) {
 	if os.Getenv("STOCKER_INTEGRATION_TEST") != "1" {
 		t.Skip("set STOCKER_INTEGRATION_TEST=1 to run MongoDB integration tests")
 	}
@@ -76,25 +76,29 @@ func TestPhase1AuthSearchAndWatchlistFlow(t *testing.T) {
 	if search.status != http.StatusOK {
 		t.Fatalf("search status %d: %s", search.status, search.body)
 	}
-	add := doJSON(t, client, http.MethodPost, httpServer.URL+"/api/v1/watchlist", authResult.AccessToken, map[string]string{"symbol": "RELIANCE"})
+	add := doJSON(t, client, http.MethodPost, httpServer.URL+"/api/v1/portfolio", authResult.AccessToken, map[string]any{"symbol": "RELIANCE", "quantity": 5, "averageBuyPrice": 1200})
 	if add.status != http.StatusCreated {
 		t.Fatalf("add status %d: %s", add.status, add.body)
 	}
-	pause := doJSON(t, client, http.MethodPatch, httpServer.URL+"/api/v1/watchlist/RELIANCE", authResult.AccessToken, map[string]bool{"alertsPaused": true})
+	refreshAll := doJSON(t, client, http.MethodPost, httpServer.URL+"/api/v1/refresh", authResult.AccessToken, nil)
+	if refreshAll.status != http.StatusOK || !bytes.Contains(refreshAll.body, []byte(`"refreshed":1`)) {
+		t.Fatalf("global refresh status %d: %s", refreshAll.status, refreshAll.body)
+	}
+	pause := doJSON(t, client, http.MethodPatch, httpServer.URL+"/api/v1/portfolio/RELIANCE", authResult.AccessToken, map[string]bool{"alertsPaused": true})
 	if pause.status != http.StatusOK {
 		t.Fatalf("pause status %d: %s", pause.status, pause.body)
 	}
-	remove := doJSON(t, client, http.MethodDelete, httpServer.URL+"/api/v1/watchlist/RELIANCE", authResult.AccessToken, nil)
+	remove := doJSON(t, client, http.MethodDelete, httpServer.URL+"/api/v1/portfolio/RELIANCE", authResult.AccessToken, nil)
 	if remove.status != http.StatusNoContent {
 		t.Fatalf("remove status %d: %s", remove.status, remove.body)
 	}
-	list := doJSON(t, client, http.MethodGet, httpServer.URL+"/api/v1/watchlist", authResult.AccessToken, nil)
-	var watchlist struct {
+	list := doJSON(t, client, http.MethodGet, httpServer.URL+"/api/v1/portfolio", authResult.AccessToken, nil)
+	var portfolio struct {
 		Data []any `json:"data"`
 	}
-	decodeJSON(t, list.body, &watchlist)
-	if list.status != http.StatusOK || len(watchlist.Data) != 0 {
-		t.Fatalf("expected empty watchlist, status %d: %s", list.status, list.body)
+	decodeJSON(t, list.body, &portfolio)
+	if list.status != http.StatusOK || len(portfolio.Data) != 0 {
+		t.Fatalf("expected empty portfolio, status %d: %s", list.status, list.body)
 	}
 
 	refresh := doJSON(t, client, http.MethodPost, httpServer.URL+"/api/v1/auth/refresh", "", nil)

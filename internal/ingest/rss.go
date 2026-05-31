@@ -1,6 +1,7 @@
 package ingest
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/stocker-app/stocker/internal/domain"
+	"golang.org/x/net/html/charset"
 )
 
 const maxFeedBytes = 2 << 20
@@ -138,7 +140,9 @@ type atomEntry struct {
 
 func parseFeed(data []byte, retrievedAt time.Time, cfg RSSAdapterConfig) ([]domain.SourceItem, error) {
 	var feed feedEnvelope
-	if err := xml.Unmarshal(data, &feed); err != nil {
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	decoder.CharsetReader = charset.NewReaderLabel
+	if err := decoder.Decode(&feed); err != nil {
 		return nil, fmt.Errorf("parse RSS/Atom: %w", err)
 	}
 	items := make([]domain.SourceItem, 0, len(feed.Channel.Items)+len(feed.Entries))

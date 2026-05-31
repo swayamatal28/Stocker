@@ -37,7 +37,7 @@ erDiagram
   NEWS_SOURCES ||--o{ SOURCE_HEALTH_METRICS : measured_by
 ```
 
-Critical invariants include an atomic conditional update for the 10-item watchlist, unique source hashes, unique alert deduplication keys, TTL indexes for expiring refresh sessions and retained raw content, immutable signal input snapshots, UTC timestamps, and source/`as_of` on every financial value. API schema validation enforces score bounds and compatible reporting periods before documents are written.
+Critical invariants include an atomic conditional update for the 50-holding portfolio, unique source hashes, unique alert deduplication keys, TTL indexes for expiring refresh sessions and retained raw content, immutable signal input snapshots, UTC timestamps, and source/`as_of` on every financial value. API schema validation enforces score bounds and compatible reporting periods before documents are written. The physical MongoDB collection retains its original `watchlists` name so existing users' records migrate in place without data loss.
 
 ## Phase 2 collections in active use
 
@@ -68,10 +68,10 @@ Story clusters currently use a stable `cluster_id` on each article rather than a
 
 ## Phase 5 collections in active use
 
-- `alert_rules` stores user-owned, watchlist-scoped event or market-threshold rules with severity/confidence gates, cooldown, quiet hours and per-channel preferences. Revocation is soft so prior deliveries remain auditable.
+- `alert_rules` stores user-owned, portfolio-scoped event or market-threshold rules with severity/confidence gates, cooldown, quiet hours and per-channel preferences. Revocation is soft so prior deliveries remain auditable.
 - `alert_events` stores the exact rule snapshot, triggering values, source timestamp, cited evidence, delivery/read state and a unique SHA-256 deduplication key built from user, rule and cluster or cooldown bucket.
 - `notification_deliveries` enforces one delivery per alert event and channel. Only `in_app` is active; external destinations are neither collected nor contacted.
-- `briefings` stores one evidence-grounded morning, closing or daily watchlist snapshot per user and UTC date. Items cite either an immutable signal source or a timestamped market-provider snapshot.
+- `briefings` stores one evidence-grounded morning, closing or daily portfolio snapshot per user and UTC date. Items cite either an immutable signal source or a timestamped market-provider snapshot.
 - `signal_outcomes` stores idempotent, versioned event-time outcomes joined to the first eligible post-horizon quote.
 - `evaluation_leakage` records features whose availability timestamp followed the simulated decision; affected signals are excluded from scoring.
 - `evaluation_runs` stores report parameters, counts and dimension slices for reproducibility and audit retention.

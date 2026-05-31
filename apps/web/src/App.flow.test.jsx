@@ -15,9 +15,9 @@ describe('Phase 1 onboarding flow', () => {
         vi.restoreAllMocks();
     });
 
-    it('registers, searches the security master, and adds a watchlist item', async () => {
-        let watchlist = [];
-        const security = { id: '507f1f77bcf86cd799439011', nseSymbol: 'RELIANCE', bseCode: '500325', isin: 'INE002A01018', companyName: 'Reliance Industries', sector: 'Energy', industry: 'Diversified', price: 1400, changePercent: 0.8, signal: 'Positive setup', newsCount: 1, asOf: new Date().toISOString(), source: 'Fixture', alertsPaused: false };
+    it('registers, searches the security master, and adds a portfolio holding', async () => {
+        let portfolio = [];
+        const security = { id: '507f1f77bcf86cd799439011', nseSymbol: 'RELIANCE', bseCode: '500325', isin: 'INE002A01018', companyName: 'Reliance Industries', sector: 'Energy', industry: 'Diversified', price: 1400, changePercent: 0.8, signal: 'Positive setup', newsCount: 1, asOf: new Date().toISOString(), source: 'Live provider', alertsPaused: false };
         vi.spyOn(api, 'subscribe').mockReturnValue(() => {});
         vi.stubGlobal('fetch', vi.fn(async (url, init = {}) => {
             if (url === '/api/v1/auth/refresh')
@@ -36,12 +36,17 @@ describe('Phase 1 onboarding flow', () => {
                 return json({ data: [], meta: { unread: 0 } });
             if (url.startsWith('/api/v1/stocks/search'))
                 return json({ data: [security] });
-            if (url === '/api/v1/watchlist' && init.method === 'POST') {
-                watchlist = [security];
-                return json({ data: security }, 201);
+            if (url === '/api/v1/portfolio' && init.method === 'POST') {
+                const holding = { ...security, quantity: 5, averageBuyPrice: 1200, currentValue: 7000, investedValue: 6000, pnl: 1000, pnlPercent: 16.67, dayPnl: 56, detailsComplete: true };
+                portfolio = [holding];
+                return json({ data: holding }, 201);
             }
-            if (url === '/api/v1/watchlist')
-                return json({ data: watchlist, meta: { count: watchlist.length, limit: 10 } });
+            if (url === '/api/v1/portfolio')
+                return json({ data: portfolio, meta: { count: portfolio.length, limit: 50, summary: { investedValue: 6000, currentValue: 7000, pnl: 1000, pnlPercent: 16.67, dayPnl: 56 } } });
+            if (url === '/api/v1/portfolio/news')
+                return json({ data: [] });
+            if (url === '/api/v1/refresh' && init.method === 'POST')
+                return json({ data: { attempted: 1, refreshed: 1, failed: 0, message: 'Everything is up to date.' } });
             throw new Error(`Unhandled request: ${init.method || 'GET'} ${url}`);
         }));
         const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -55,13 +60,28 @@ describe('Phase 1 onboarding flow', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
 
         await screen.findByText(/Good evening, Phase/);
+        expect(document.querySelector('.sidebar')).toHaveClass('fixed');
+        expect(document.querySelector('.dashboard-content')).toBeInTheDocument();
+        const themeToggle = screen.getByRole('button', { name: 'Switch to Financial Newspaper light mode' });
+        fireEvent.click(themeToggle);
+        await waitFor(() => expect(document.documentElement).toHaveClass('light'));
+        expect(document.documentElement).not.toHaveClass('dark');
+        expect(document.documentElement.dataset.theme).toBe('light');
+        expect(localStorage.getItem('stocker_theme')).toBe('light');
+        expect(screen.getByRole('button', { name: 'Switch to Trading Terminal dark mode' })).toBeInTheDocument();
         fireEvent.click(screen.getByText(/Search stocks, news or ISIN/));
         const search = await screen.findByPlaceholderText('Company, NSE symbol, BSE code or ISIN');
         fireEvent.change(search, { target: { value: 'RELIANCE' } });
         const result = await screen.findByText('Reliance Industries');
         fireEvent.click(result.closest('button'));
+        fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '5' } });
+        fireEvent.change(screen.getByLabelText('Average buy price (₹)'), { target: { value: '1200' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Add to portfolio' }));
 
-        await waitFor(() => expect(screen.getByText('1 of 10 companies monitored')).toBeInTheDocument());
-        expect(fetch).toHaveBeenCalledWith('/api/v1/watchlist', expect.objectContaining({ method: 'POST' }));
+        await waitFor(() => expect(screen.getByText(/1 of 50 stocks/)).toBeInTheDocument());
+        expect(fetch).toHaveBeenCalledWith('/api/v1/portfolio', expect.objectContaining({ method: 'POST' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Refresh everything' }));
+        await screen.findByText('Everything is up to date.');
+        expect(fetch).toHaveBeenCalledWith('/api/v1/refresh', expect.objectContaining({ method: 'POST' }));
     });
 });

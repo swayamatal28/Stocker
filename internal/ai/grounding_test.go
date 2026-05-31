@@ -51,6 +51,21 @@ func TestLocalProviderTreatsPromptInjectionAsData(t *testing.T) {
 	}
 }
 
+func TestLocalProviderEmitsEmptyArrayWhenArticleHasNoLinkedSecurity(t *testing.T) {
+	document := GroundingDocument{URL: "https://publisher.example/market", Source: "Publisher", Title: "General market update", Text: "Markets were mixed.", PublishedAt: time.Now()}
+	raw, err := (LocalProvider{}).Analyze(context.Background(), GroundedRequest{Documents: []GroundingDocument{document}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	analysis, err := Validate(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if analysis.RelevantSymbols == nil || len(analysis.RelevantSymbols) != 0 {
+		t.Fatalf("expected an empty symbol array, got %#v", analysis.RelevantSymbols)
+	}
+}
+
 func TestDetectLanguage(t *testing.T) {
 	if got := DetectLanguage("कंपनी का परिणाम", "en"); got != "hi" {
 		t.Fatalf("expected hi, got %s", got)

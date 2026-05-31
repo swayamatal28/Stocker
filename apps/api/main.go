@@ -12,7 +12,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stocker-app/stocker/internal/config"
 	"github.com/stocker-app/stocker/internal/httpapi"
-	"github.com/stocker-app/stocker/internal/ingest"
 	"github.com/stocker-app/stocker/internal/store"
 )
 
@@ -51,20 +50,9 @@ func main() {
 		log.Error("phase3_intelligence_migration_failed", "error", err)
 		os.Exit(1)
 	}
-	if err := db.Seed(ctx); err != nil {
-		log.Error("seed_failed", "error", err)
-		os.Exit(1)
-	}
-	if cfg.MockProviders {
-		policy := ingest.SourcePolicy{
-			PollInterval: cfg.IngestPollInterval, Timeout: cfg.IngestTimeout,
-			RequestsPerMinute: cfg.IngestRequestsPerMinute, RawRetention: time.Duration(cfg.RawRetention) * 24 * time.Hour,
-			Attribution: cfg.IngestAttribution, Licence: cfg.IngestLicence, TermsURL: cfg.IngestTermsURL,
-			AutomatedAccessAllowed: true, RobotsChecked: true,
-		}
-		processor := ingest.NewProcessor(db, nil, nil, log, policy)
-		if _, err := processor.RunOnce(ctx, ingest.MockAdapter{}, ingest.Cursor{}); err != nil {
-			log.Error("mock_news_seed_failed", "error", err)
+	if !cfg.MockProviders {
+		if err := db.PurgeSyntheticRuntimeData(ctx); err != nil {
+			log.Error("synthetic_data_cleanup_failed", "error", err)
 			os.Exit(1)
 		}
 	}

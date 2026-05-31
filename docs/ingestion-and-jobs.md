@@ -60,14 +60,14 @@ After five failed outbox deliveries the event is copied to `ingestion_dead_lette
 
 ## Phase 4 multi-source stock news
 
-`INGEST_SOURCES_JSON` can define multiple independent RSS/Atom sources. Each enabled entry is validated for explicit automated-access approval, attribution, licence/terms URL, robots review, polling rate, timeout, raw-retention period, and policy expiry before any request is made. Each source receives its own processor, cursor, rate state, circuit state, health history, and polling schedule.
+`INGEST_SOURCES_FILE=configs/news-sources.live.json` defines six independent RSS/Atom sources; `INGEST_SOURCES_JSON` remains available as an override. Each enabled entry is validated for explicit automated-access approval, attribution, licence/terms URL, robots review, polling rate, timeout, raw-retention period, and policy expiry before any request is made. Each source receives its own processor, cursor, rate state, circuit state, health history, and polling schedule.
 
-Candidate well-known publisher feeds are documented—but deliberately disabled—in `configs/news-sources.example.json`. Enabling them requires a current terms review or written permission. STOCKER retains only feed-provided text allowed by that policy and always links to the original publisher.
+The active register contains Moneycontrol, Business Standard, The Hindu BusinessLine, Mint, The Economic Times markets, and CNBC-TV18. STOCKER retains only feed-provided text allowed by the recorded policy and always links to the original publisher; it does not crawl the linked article pages.
 
 Security aliases allow headlines such as “Ola Electric…” to link deterministically to `OLAELEC`. `GET /stocks/{symbol}/news` returns a maximum of 10 newest clustered results by default; exact duplicates are rejected and near-duplicates remain grouped.
 
 ## Phase 5 alert evaluation
 
-The API owns a bounded evaluator loop configured by `ALERT_EVALUATION_INTERVAL` (minimum 10 seconds, default one minute). It refreshes the public market snapshot when configured, evaluates only enabled rules for non-paused watchlist items, and persists the triggering condition plus evidence before delivery. Event rules deduplicate by story cluster and rule; threshold rules deduplicate by rule and cooldown bucket.
+The API owns a bounded evaluator loop configured by `ALERT_EVALUATION_INTERVAL` (minimum 10 seconds, default one minute). It refreshes the public market snapshot when configured, evaluates only enabled rules for non-paused portfolio holdings, and persists the triggering condition plus evidence before delivery. Event rules deduplicate by story cluster and rule; threshold rules deduplicate by rule and cooldown bucket.
 
-Quiet-hour alerts are persisted immediately with a future `deliver_after` timestamp. Delivery rechecks that the rule is still enabled and watchlist alerts are still active, so pausing or revoking delivery during the quiet window cancels it. Authenticated SSE delivery is targeted by user ID; one user's alert is never broadcast to another user's stream.
+Quiet-hour alerts are persisted immediately with a future `deliver_after` timestamp. Delivery rechecks that the rule is still enabled and portfolio alerts are still active, so pausing or revoking delivery during the quiet window cancels it. Authenticated SSE delivery is targeted by user ID; one user's alert is never broadcast to another user's stream.
