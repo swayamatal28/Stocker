@@ -228,3 +228,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +187
 - Cumulative LOC: 4,421
 
+## 01 Jun 2026 (Mon)
+
+- Feature: Create the React and Vite JavaScript application
+- Recorded commit: `feat(web): the React and Vite JavaScript application`
+- Recorded paths: `apps/web/src/`
+- Approximate LOC: +167
+- Cumulative LOC: 4,588
+
