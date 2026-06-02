@@ -236,3 +236,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +167
 - Cumulative LOC: 4,588
 
+## 02 Jun 2026 (Tue)
+
+- Feature: Configure TanStack Query and Zustand
+- Recorded commit: `feat(core): TanStack Query and Zustand`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +117
+- Cumulative LOC: 4,705
+
