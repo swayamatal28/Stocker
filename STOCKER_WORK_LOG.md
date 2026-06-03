@@ -244,3 +244,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +117
 - Cumulative LOC: 4,705
 
+## 03 Jun 2026 (Wed)
+
+- Feature: Build registration and sign-in screens
+- Recorded commit: `feat(web): registration and sign-in screens`
+- Recorded paths: `apps/web/src/`
+- Approximate LOC: +220
+- Cumulative LOC: 4,925
+
