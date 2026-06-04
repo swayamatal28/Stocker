@@ -252,3 +252,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +220
 - Cumulative LOC: 4,925
 
+## 04 Jun 2026 (Thu)
+
+- Feature: Connect authentication forms to the API
+- Recorded commit: `feat(auth): authentication forms to the API`
+- Recorded paths: `internal/auth/, internal/httpapi/`
+- Approximate LOC: +183
+- Cumulative LOC: 5,108
+
