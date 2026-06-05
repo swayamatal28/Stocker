@@ -260,3 +260,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +183
 - Cumulative LOC: 5,108
 
+## 05 Jun 2026 (Fri)
+
+- Feature: Add automatic token refresh and server logout
+- Recorded commit: `feat(auth): automatic token refresh and server logout`
+- Recorded paths: `internal/auth/, internal/httpapi/`
+- Approximate LOC: +160
+- Cumulative LOC: 5,268
+
