@@ -276,3 +276,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +197
 - Cumulative LOC: 5,465
 
+## 08 Jun 2026 (Mon)
+
+- Feature: Add persistent dark and light themes
+- Recorded commit: `feat(web): persistent dark and light themes`
+- Recorded paths: `apps/web/src/`
+- Approximate LOC: +167
+- Cumulative LOC: 5,632
+
