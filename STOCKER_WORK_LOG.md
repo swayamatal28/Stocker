@@ -292,3 +292,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +201
 - Cumulative LOC: 5,833
 
+## 10 Jun 2026 (Wed)
+
+- Feature: Connect the market overview query
+- Recorded commit: `feat(web): the market overview query`
+- Recorded paths: `apps/web/src/`
+- Approximate LOC: +164
+- Cumulative LOC: 5,997
+
