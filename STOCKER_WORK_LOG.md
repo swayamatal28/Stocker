@@ -300,3 +300,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +164
 - Cumulative LOC: 5,997
 
+## 11 Jun 2026 (Thu)
+
+- Feature: Build NIFTY and SENSEX summary cards
+- Recorded commit: `feat(core): NIFTY and SENSEX summary cards`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +121
+- Cumulative LOC: 6,118
+
