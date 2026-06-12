@@ -308,3 +308,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +121
 - Cumulative LOC: 6,118
 
+## 12 Jun 2026 (Fri)
+
+- Feature: Add the accessible market chart
+- Recorded commit: `feat(web): the accessible market chart`
+- Recorded paths: `apps/web/src/`
+- Approximate LOC: +222
+- Cumulative LOC: 6,340
+
