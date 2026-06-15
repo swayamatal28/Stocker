@@ -324,3 +324,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +204
 - Cumulative LOC: 6,544
 
+## 15 Jun 2026 (Mon)
+
+- Feature: Connect the authenticated watchlist query
+- Recorded commit: `feat(auth): the authenticated watchlist query`
+- Recorded paths: `internal/auth/, internal/httpapi/`
+- Approximate LOC: +153
+- Cumulative LOC: 6,697
+
