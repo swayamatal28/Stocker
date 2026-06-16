@@ -332,3 +332,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +153
 - Cumulative LOC: 6,697
 
+## 16 Jun 2026 (Tue)
+
+- Feature: Build the watchlist table
+- Recorded commit: `feat(web): the watchlist table`
+- Recorded paths: `apps/web/src/`
+- Approximate LOC: +172
+- Cumulative LOC: 6,869
+
