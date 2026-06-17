@@ -340,3 +340,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +172
 - Cumulative LOC: 6,869
 
+## 17 Jun 2026 (Wed)
+
+- Feature: Build stock search by company, NSE, BSE, and ISIN
+- Recorded commit: `feat(core): stock search by company, NSE, BSE, and ISIN`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +123
+- Cumulative LOC: 6,992
+
