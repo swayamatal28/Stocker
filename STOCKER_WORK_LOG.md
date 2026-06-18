@@ -348,3 +348,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +123
 - Cumulative LOC: 6,992
 
+## 18 Jun 2026 (Thu)
+
+- Feature: Connect search results to watchlist actions
+- Recorded commit: `feat(core): search results to watchlist actions`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +174
+- Cumulative LOC: 7,166
+
