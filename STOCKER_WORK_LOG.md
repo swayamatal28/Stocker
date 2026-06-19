@@ -356,3 +356,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +174
 - Cumulative LOC: 7,166
 
+## 19 Jun 2026 (Fri)
+
+- Feature: Add remove and pause controls to the watchlist
+- Recorded commit: `feat(core): remove and pause controls to the watchlist`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +143
+- Cumulative LOC: 7,309
+
