@@ -364,3 +364,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +143
 - Cumulative LOC: 7,309
 
+## 20 Jun 2026 (Sat)
+
+- Feature: Build the breaking-news timeline
+- Recorded commit: `feat(web): the breaking-news timeline`
+- Recorded paths: `apps/web/src/`
+- Approximate LOC: +199
+- Cumulative LOC: 7,508
+
