@@ -372,3 +372,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +199
 - Cumulative LOC: 7,508
 
+## 22 Jun 2026 (Mon)
+
+- Feature: Build the explainable signal spotlight
+- Recorded commit: `feat(signal): the explainable signal spotlight`
+- Recorded paths: `internal/signal/, internal/store/`
+- Approximate LOC: +214
+- Cumulative LOC: 7,722
+
