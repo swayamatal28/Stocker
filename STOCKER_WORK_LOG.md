@@ -380,3 +380,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +214
 - Cumulative LOC: 7,722
 
+## 24 Jun 2026 (Wed)
+
+- Feature: Build the source-health panel
+- Recorded commit: `feat(web): the source-health panel`
+- Recorded paths: `apps/web/src/`
+- Approximate LOC: +189
+- Cumulative LOC: 7,911
+
