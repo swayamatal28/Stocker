@@ -396,3 +396,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +176
 - Cumulative LOC: 8,087
 
+## 26 Jun 2026 (Fri)
+
+- Feature: Complete keyboard and accessibility behavior
+- Recorded commit: `feat(core): keyboard and accessibility behavior`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +163
+- Cumulative LOC: 8,250
+
