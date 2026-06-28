@@ -412,3 +412,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +168
 - Cumulative LOC: 8,418
 
+## 28 Jun 2026 (Sun)
+
+- Feature: Reconcile OpenAPI with Phase 1 routes
+- Recorded commit: `docs(docs): OpenAPI with Phase 1 routes`
+- Recorded paths: `README.md, docs/`
+- Approximate LOC: +126
+- Cumulative LOC: 8,544
+
