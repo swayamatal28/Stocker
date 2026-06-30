@@ -428,3 +428,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +178
 - Cumulative LOC: 8,722
 
+## 30 Jun 2026 (Tue)
+
+- Feature: Complete the Phase 1 end-to-end smoke test
+- Recorded commit: `test(test): the Phase 1 end-to-end smoke test`
+- Recorded paths: `tests/, apps/web/src/*.test.jsx`
+- Approximate LOC: +165
+- Cumulative LOC: 8,887
+
