@@ -436,3 +436,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +165
 - Cumulative LOC: 8,887
 
+## 01 Jul 2026 (Wed)
+
+- Feature: Create the source licensing and retention policy model
+- Recorded commit: `docs(docs): the source licensing and retention policy model`
+- Recorded paths: `README.md, docs/`
+- Approximate LOC: +87
+- Cumulative LOC: 8,974
+
