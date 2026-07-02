@@ -444,3 +444,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +87
 - Cumulative LOC: 8,974
 
+## 02 Jul 2026 (Thu)
+
+- Feature: Create the provider approval register
+- Recorded commit: `docs(docs): the provider approval register`
+- Recorded paths: `README.md, docs/`
+- Approximate LOC: +68
+- Cumulative LOC: 9,042
+
