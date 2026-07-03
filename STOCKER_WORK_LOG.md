@@ -452,3 +452,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +68
 - Cumulative LOC: 9,042
 
+## 03 Jul 2026 (Fri)
+
+- Feature: Define the common source-adapter interface
+- Recorded commit: `feat(ingest): the common source-adapter interface`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +205
+- Cumulative LOC: 9,247
+
