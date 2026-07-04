@@ -460,3 +460,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +205
 - Cumulative LOC: 9,247
 
+## 04 Jul 2026 (Sat)
+
+- Feature: Build the deterministic mock adapter
+- Recorded commit: `feat(ingest): the deterministic mock adapter`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +176
+- Cumulative LOC: 9,423
+
