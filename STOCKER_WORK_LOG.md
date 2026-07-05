@@ -468,3 +468,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +176
 - Cumulative LOC: 9,423
 
+## 05 Jul 2026 (Sun)
+
+- Feature: Implement canonical URL normalization
+- Recorded commit: `feat(core): canonical URL normalization`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +156
+- Cumulative LOC: 9,579
+
