@@ -476,3 +476,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +156
 - Cumulative LOC: 9,579
 
+## 07 Jul 2026 (Tue)
+
+- Feature: Implement SHA-256 content deduplication
+- Recorded commit: `feat(ingest): SHA-256 content deduplication`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +211
+- Cumulative LOC: 9,790
+
