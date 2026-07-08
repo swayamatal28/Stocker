@@ -484,3 +484,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +211
 - Cumulative LOC: 9,790
 
+## 08 Jul 2026 (Wed)
+
+- Feature: Persist raw documents with TTL retention
+- Recorded commit: `docs(docs): raw documents with TTL retention`
+- Recorded paths: `README.md, docs/`
+- Approximate LOC: +123
+- Cumulative LOC: 9,913
+
