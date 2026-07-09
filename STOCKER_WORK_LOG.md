@@ -492,3 +492,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +123
 - Cumulative LOC: 9,913
 
+## 09 Jul 2026 (Thu)
+
+- Feature: Persist normalized attributed articles
+- Recorded commit: `feat(ingest): normalized attributed articles`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +172
+- Cumulative LOC: 10,085
+
