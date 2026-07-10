@@ -500,3 +500,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +172
 - Cumulative LOC: 10,085
 
+## 10 Jul 2026 (Fri)
+
+- Feature: Persist news sources and source policies
+- Recorded commit: `feat(ingest): news sources and source policies`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +177
+- Cumulative LOC: 10,262
+
