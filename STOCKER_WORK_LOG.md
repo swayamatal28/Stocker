@@ -516,3 +516,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +178
 - Cumulative LOC: 10,440
 
+## 12 Jul 2026 (Sun)
+
+- Feature: Add Redis source polling locks
+- Recorded commit: `feat(ingest): Redis source polling locks`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +178
+- Cumulative LOC: 10,618
+
