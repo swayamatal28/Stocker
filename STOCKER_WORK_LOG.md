@@ -524,3 +524,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +178
 - Cumulative LOC: 10,618
 
+## 13 Jul 2026 (Mon)
+
+- Feature: Add polling intervals and fetch timeouts
+- Recorded commit: `feat(ingest): polling intervals and fetch timeouts`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +208
+- Cumulative LOC: 10,826
+
