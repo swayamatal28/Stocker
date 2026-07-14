@@ -532,3 +532,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +208
 - Cumulative LOC: 10,826
 
+## 14 Jul 2026 (Tue)
+
+- Feature: Add exponential retries with jitter
+- Recorded commit: `feat(core): exponential retries with jitter`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +165
+- Cumulative LOC: 10,991
+
