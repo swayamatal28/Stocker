@@ -540,3 +540,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +165
 - Cumulative LOC: 10,991
 
+## 15 Jul 2026 (Wed)
+
+- Feature: Add per-domain request limits
+- Recorded commit: `feat(core): per-domain request limits`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +123
+- Cumulative LOC: 11,114
+
