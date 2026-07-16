@@ -548,3 +548,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +123
 - Cumulative LOC: 11,114
 
+## 16 Jul 2026 (Thu)
+
+- Feature: Add the source circuit breaker
+- Recorded commit: `feat(ingest): the source circuit breaker`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +167
+- Cumulative LOC: 11,281
+
