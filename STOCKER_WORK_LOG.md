@@ -556,3 +556,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +167
 - Cumulative LOC: 11,281
 
+## 17 Jul 2026 (Fri)
+
+- Feature: Persist source-health metrics
+- Recorded commit: `feat(ingest): source-health metrics`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +195
+- Cumulative LOC: 11,476
+
