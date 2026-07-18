@@ -564,3 +564,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +195
 - Cumulative LOC: 11,476
 
+## 18 Jul 2026 (Sat)
+
+- Feature: Build the ingestion worker loop
+- Recorded commit: `feat(ingest): the ingestion worker loop`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +199
+- Cumulative LOC: 11,675
+
