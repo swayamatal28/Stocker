@@ -572,3 +572,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +199
 - Cumulative LOC: 11,675
 
+## 19 Jul 2026 (Sun)
+
+- Feature: Publish durable news-created events
+- Recorded commit: `feat(ingest): durable news-created events`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +206
+- Cumulative LOC: 11,881
+
