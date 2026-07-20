@@ -580,3 +580,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +206
 - Cumulative LOC: 11,881
 
+## 20 Jul 2026 (Mon)
+
+- Feature: Create Redis Streams consumer groups
+- Recorded commit: `feat(ingest): Redis Streams consumer groups`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +217
+- Cumulative LOC: 12,098
+
