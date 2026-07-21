@@ -588,3 +588,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +217
 - Cumulative LOC: 12,098
 
+## 21 Jul 2026 (Tue)
+
+- Feature: Add idempotency, retries, dead letters, and replay
+- Recorded commit: `feat(core): idempotency, retries, dead letters, and replay`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +124
+- Cumulative LOC: 12,222
+
