@@ -596,3 +596,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +124
 - Cumulative LOC: 12,222
 
+## 22 Jul 2026 (Wed)
+
+- Feature: Add the transactional outbox
+- Recorded commit: `feat(ingest): the transactional outbox`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +200
+- Cumulative LOC: 12,422
+
