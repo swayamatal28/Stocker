@@ -604,3 +604,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +200
 - Cumulative LOC: 12,422
 
+## 23 Jul 2026 (Thu)
+
+- Feature: Create article clusters
+- Recorded commit: `feat(ingest): article clusters`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +218
+- Cumulative LOC: 12,640
+
