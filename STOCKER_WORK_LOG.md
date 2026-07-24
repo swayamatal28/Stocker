@@ -612,3 +612,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +218
 - Cumulative LOC: 12,640
 
+## 24 Jul 2026 (Fri)
+
+- Feature: Add near-duplicate similarity checks
+- Recorded commit: `feat(core): near-duplicate similarity checks`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +174
+- Cumulative LOC: 12,814
+
