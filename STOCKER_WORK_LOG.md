@@ -620,3 +620,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +174
 - Cumulative LOC: 12,814
 
+## 25 Jul 2026 (Sat)
+
+- Feature: Build database-backed news APIs
+- Recorded commit: `feat(ingest): database-backed news APIs`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +176
+- Cumulative LOC: 12,990
+
