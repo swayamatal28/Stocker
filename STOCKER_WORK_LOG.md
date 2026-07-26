@@ -628,3 +628,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +176
 - Cumulative LOC: 12,990
 
+## 26 Jul 2026 (Sun)
+
+- Feature: Add news filtering and keyword search
+- Recorded commit: `feat(ingest): news filtering and keyword search`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +227
+- Cumulative LOC: 13,217
+
