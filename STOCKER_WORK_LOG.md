@@ -644,3 +644,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +184
 - Cumulative LOC: 13,401
 
+## 29 Jul 2026 (Wed)
+
+- Feature: Bridge Redis events into Server-Sent Events
+- Recorded commit: `feat(core): Bridge Redis events into Server-Sent Events`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +126
+- Cumulative LOC: 13,527
+
