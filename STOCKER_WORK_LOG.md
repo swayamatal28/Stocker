@@ -660,3 +660,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +167
 - Cumulative LOC: 13,694
 
+## 31 Jul 2026 (Fri)
+
+- Feature: Add ingestion fixtures and integration tests
+- Recorded commit: `test(test): ingestion fixtures and integration tests`
+- Recorded paths: `tests/, apps/web/src/*.test.jsx`
+- Approximate LOC: +129
+- Cumulative LOC: 13,823
+
