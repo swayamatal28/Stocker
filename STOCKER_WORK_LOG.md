@@ -668,3 +668,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +129
 - Cumulative LOC: 13,823
 
+## 01 Aug 2026 (Sat)
+
+- Feature: Define the provider-neutral AI interface
+- Recorded commit: `feat(ai): the provider-neutral AI interface`
+- Recorded paths: `internal/ai/, workers/analysis/`
+- Approximate LOC: +245
+- Cumulative LOC: 14,068
+
