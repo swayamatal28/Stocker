@@ -676,3 +676,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +245
 - Cumulative LOC: 14,068
 
+## 02 Aug 2026 (Sun)
+
+- Feature: Finalize the strict AI output schema
+- Recorded commit: `chore(ai): the strict AI output schema`
+- Recorded paths: `internal/ai/, workers/analysis/`
+- Approximate LOC: +221
+- Cumulative LOC: 14,289
+
