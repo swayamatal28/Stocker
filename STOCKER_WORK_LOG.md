@@ -684,3 +684,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +221
 - Cumulative LOC: 14,289
 
+## 04 Aug 2026 (Tue)
+
+- Feature: Validate AI JSON and score ranges
+- Recorded commit: `feat(ai): Validate AI JSON and score ranges`
+- Recorded paths: `internal/ai/, workers/analysis/`
+- Approximate LOC: +194
+- Cumulative LOC: 14,483
+
