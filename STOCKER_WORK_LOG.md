@@ -692,3 +692,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +194
 - Cumulative LOC: 14,483
 
+## 05 Aug 2026 (Wed)
+
+- Feature: Add prompt-injection boundaries
+- Recorded commit: `feat(ai): prompt-injection boundaries`
+- Recorded paths: `internal/ai/, workers/analysis/`
+- Approximate LOC: +245
+- Cumulative LOC: 14,728
+
