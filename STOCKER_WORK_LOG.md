@@ -700,3 +700,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +245
 - Cumulative LOC: 14,728
 
+## 06 Aug 2026 (Thu)
+
+- Feature: Add allowlisted numeric fact grounding
+- Recorded commit: `feat(core): allowlisted numeric fact grounding`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +175
+- Cumulative LOC: 14,903
+
