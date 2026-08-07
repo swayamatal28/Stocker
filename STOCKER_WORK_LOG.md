@@ -708,3 +708,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +175
 - Cumulative LOC: 14,903
 
+## 07 Aug 2026 (Fri)
+
+- Feature: Create the financial event taxonomy
+- Recorded commit: `feat(core): the financial event taxonomy`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +160
+- Cumulative LOC: 15,063
+
