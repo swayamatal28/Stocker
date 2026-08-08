@@ -716,3 +716,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +160
 - Cumulative LOC: 15,063
 
+## 08 Aug 2026 (Sat)
+
+- Feature: Add language detection and translation flow
+- Recorded commit: `feat(core): language detection and translation flow`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +130
+- Cumulative LOC: 15,193
+
