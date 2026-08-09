@@ -724,3 +724,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +130
 - Cumulative LOC: 15,193
 
+## 09 Aug 2026 (Sun)
+
+- Feature: Extract company and security entities
+- Recorded commit: `feat(auth): company and security entities`
+- Recorded paths: `internal/auth/, internal/httpapi/`
+- Approximate LOC: +164
+- Cumulative LOC: 15,357
+
