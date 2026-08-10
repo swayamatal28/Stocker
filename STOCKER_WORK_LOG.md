@@ -732,3 +732,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +164
 - Cumulative LOC: 15,357
 
+## 10 Aug 2026 (Mon)
+
+- Feature: Link extracted entities to securities
+- Recorded commit: `feat(core): extracted entities to securities`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +129
+- Cumulative LOC: 15,486
+
