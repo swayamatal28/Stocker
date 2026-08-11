@@ -740,3 +740,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +129
 - Cumulative LOC: 15,486
 
+## 11 Aug 2026 (Tue)
+
+- Feature: Persist versioned AI analyses
+- Recorded commit: `feat(ai): versioned AI analyses`
+- Recorded paths: `internal/ai/, workers/analysis/`
+- Approximate LOC: +243
+- Cumulative LOC: 15,729
+
