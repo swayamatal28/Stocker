@@ -748,3 +748,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +243
 - Cumulative LOC: 15,729
 
+## 12 Aug 2026 (Wed)
+
+- Feature: Persist claim-level evidence references
+- Recorded commit: `feat(ai): claim-level evidence references`
+- Recorded paths: `internal/ai/, workers/analysis/`
+- Approximate LOC: +201
+- Cumulative LOC: 15,930
+
