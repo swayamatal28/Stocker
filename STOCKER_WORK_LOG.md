@@ -756,3 +756,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +201
 - Cumulative LOC: 15,930
 
+## 13 Aug 2026 (Thu)
+
+- Feature: Detect novelty, rumours, and contradictions
+- Recorded commit: `feat(ai): Detect novelty, rumours, and contradictions`
+- Recorded paths: `internal/ai/, workers/analysis/`
+- Approximate LOC: +189
+- Cumulative LOC: 16,119
+
