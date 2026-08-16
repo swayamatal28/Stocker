@@ -772,3 +772,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +236
 - Cumulative LOC: 16,355
 
+## 16 Aug 2026 (Sun)
+
+- Feature: Implement the versioned signal engine
+- Recorded commit: `feat(signal): the versioned signal engine`
+- Recorded paths: `internal/signal/, internal/store/`
+- Approximate LOC: +210
+- Cumulative LOC: 16,565
+
