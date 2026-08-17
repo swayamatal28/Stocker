@@ -780,3 +780,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +210
 - Cumulative LOC: 16,565
 
+## 17 Aug 2026 (Mon)
+
+- Feature: Add signal weights and evidence gates
+- Recorded commit: `feat(ai): signal weights and evidence gates`
+- Recorded paths: `internal/ai/, workers/analysis/`
+- Approximate LOC: +181
+- Cumulative LOC: 16,746
+
