@@ -788,3 +788,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +181
 - Cumulative LOC: 16,746
 
+## 19 Aug 2026 (Wed)
+
+- Feature: Persist append-only signal snapshots
+- Recorded commit: `feat(signal): append-only signal snapshots`
+- Recorded paths: `internal/signal/, internal/store/`
+- Approximate LOC: +150
+- Cumulative LOC: 16,896
+
