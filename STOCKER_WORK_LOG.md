@@ -804,3 +804,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +177
 - Cumulative LOC: 17,073
 
+## 21 Aug 2026 (Fri)
+
+- Feature: Expose analyses and signals through APIs
+- Recorded commit: `feat(ai): analyses and signals through APIs`
+- Recorded paths: `internal/ai/, workers/analysis/`
+- Approximate LOC: +227
+- Cumulative LOC: 17,300
+
