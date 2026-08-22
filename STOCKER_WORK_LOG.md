@@ -812,3 +812,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +227
 - Cumulative LOC: 17,300
 
+## 22 Aug 2026 (Sat)
+
+- Feature: Build Why This Signal and Evidence views
+- Recorded commit: `feat(web): Why This Signal and Evidence views`
+- Recorded paths: `apps/web/src/`
+- Approximate LOC: +196
+- Cumulative LOC: 17,496
+
