@@ -820,3 +820,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +196
 - Cumulative LOC: 17,496
 
+## 23 Aug 2026 (Sun)
+
+- Feature: Integrate the licensed quote provider
+- Recorded commit: `feat(data): the licensed quote provider`
+- Recorded paths: `internal/store/, internal/domain/`
+- Approximate LOC: +208
+- Cumulative LOC: 17,704
+
