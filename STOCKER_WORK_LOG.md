@@ -828,3 +828,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +208
 - Cumulative LOC: 17,704
 
+## 24 Aug 2026 (Mon)
+
+- Feature: Persist quotes and historical candles
+- Recorded commit: `feat(data): quotes and historical candles`
+- Recorded paths: `internal/store/, internal/domain/`
+- Approximate LOC: +188
+- Cumulative LOC: 17,892
+
