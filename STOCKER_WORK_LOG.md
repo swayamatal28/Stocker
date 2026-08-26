@@ -844,3 +844,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +205
 - Cumulative LOC: 18,097
 
+## 26 Aug 2026 (Wed)
+
+- Feature: Create period-aware fundamentals and ratios
+- Recorded commit: `feat(data): period-aware fundamentals and ratios`
+- Recorded paths: `internal/store/, internal/domain/`
+- Approximate LOC: +179
+- Cumulative LOC: 18,276
+
