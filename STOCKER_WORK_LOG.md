@@ -860,3 +860,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +191
 - Cumulative LOC: 18,467
 
+## 28 Aug 2026 (Fri)
+
+- Feature: Build sentiment and price-news overlays
+- Recorded commit: `feat(ingest): sentiment and price-news overlays`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +168
+- Cumulative LOC: 18,635
+
