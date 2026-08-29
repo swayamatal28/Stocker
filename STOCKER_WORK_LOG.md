@@ -868,3 +868,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +168
 - Cumulative LOC: 18,635
 
+## 29 Aug 2026 (Sat)
+
+- Feature: Build sector and unusual-activity endpoints
+- Recorded commit: `feat(core): sector and unusual-activity endpoints`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +140
+- Cumulative LOC: 18,775
+
