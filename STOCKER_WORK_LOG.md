@@ -876,3 +876,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +140
 - Cumulative LOC: 18,775
 
+## 31 Aug 2026 (Mon)
+
+- Feature: Build the corporate and economic event calendar
+- Recorded commit: `feat(core): the corporate and economic event calendar`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +123
+- Cumulative LOC: 18,898
+
