@@ -884,3 +884,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +123
 - Cumulative LOC: 18,898
 
+## 01 Sep 2026 (Tue)
+
+- Feature: Design configurable alert rules
+- Recorded commit: `feat(alerts): configurable alert rules`
+- Recorded paths: `internal/alerts/, internal/httpapi/`
+- Approximate LOC: +229
+- Cumulative LOC: 19,127
+
