@@ -892,3 +892,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +229
 - Cumulative LOC: 19,127
 
+## 03 Sep 2026 (Thu)
+
+- Feature: Build alert-rule management APIs
+- Recorded commit: `feat(alerts): alert-rule management APIs`
+- Recorded paths: `internal/alerts/, internal/httpapi/`
+- Approximate LOC: +198
+- Cumulative LOC: 19,325
+
