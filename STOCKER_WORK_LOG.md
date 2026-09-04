@@ -900,3 +900,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +198
 - Cumulative LOC: 19,325
 
+## 04 Sep 2026 (Fri)
+
+- Feature: Build the alert evaluation engine
+- Recorded commit: `feat(alerts): the alert evaluation engine`
+- Recorded paths: `internal/alerts/, internal/httpapi/`
+- Approximate LOC: +169
+- Cumulative LOC: 19,494
+
