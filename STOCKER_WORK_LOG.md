@@ -908,3 +908,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +169
 - Cumulative LOC: 19,494
 
+## 05 Sep 2026 (Sat)
+
+- Feature: Add alert deduplication and cooldowns
+- Recorded commit: `feat(alerts): alert deduplication and cooldowns`
+- Recorded paths: `internal/alerts/, internal/httpapi/`
+- Approximate LOC: +187
+- Cumulative LOC: 19,681
+
