@@ -916,3 +916,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +187
 - Cumulative LOC: 19,681
 
+## 06 Sep 2026 (Sun)
+
+- Feature: Add quiet hours and delivery preferences
+- Recorded commit: `feat(core): quiet hours and delivery preferences`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +167
+- Cumulative LOC: 19,848
+
