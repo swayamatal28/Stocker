@@ -924,3 +924,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +167
 - Cumulative LOC: 19,848
 
+## 07 Sep 2026 (Mon)
+
+- Feature: Persist in-app alerts and delivery status
+- Recorded commit: `feat(alerts): in-app alerts and delivery status`
+- Recorded paths: `internal/alerts/, internal/httpapi/`
+- Approximate LOC: +179
+- Cumulative LOC: 20,027
+
