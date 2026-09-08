@@ -932,3 +932,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +179
 - Cumulative LOC: 20,027
 
+## 08 Sep 2026 (Tue)
+
+- Feature: Build the Alerts Center
+- Recorded commit: `feat(web): the Alerts Center`
+- Recorded paths: `apps/web/src/`
+- Approximate LOC: +174
+- Cumulative LOC: 20,201
+
