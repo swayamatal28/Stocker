@@ -940,3 +940,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +174
 - Cumulative LOC: 20,201
 
+## 09 Sep 2026 (Wed)
+
+- Feature: Add browser notification delivery
+- Recorded commit: `feat(alerts): browser notification delivery`
+- Recorded paths: `internal/alerts/, internal/httpapi/`
+- Approximate LOC: +225
+- Cumulative LOC: 20,426
+
