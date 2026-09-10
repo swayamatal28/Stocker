@@ -948,3 +948,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +225
 - Cumulative LOC: 20,426
 
+## 10 Sep 2026 (Thu)
+
+- Feature: Add email notification delivery
+- Recorded commit: `feat(alerts): email notification delivery`
+- Recorded paths: `internal/alerts/, internal/httpapi/`
+- Approximate LOC: +206
+- Cumulative LOC: 20,632
+
