@@ -956,3 +956,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +206
 - Cumulative LOC: 20,632
 
+## 11 Sep 2026 (Fri)
+
+- Feature: Add optional Telegram delivery
+- Recorded commit: `feat(core): optional Telegram delivery`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +116
+- Cumulative LOC: 20,748
+
