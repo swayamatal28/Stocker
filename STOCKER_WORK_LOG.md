@@ -972,3 +972,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +208
 - Cumulative LOC: 20,956
 
+## 13 Sep 2026 (Sun)
+
+- Feature: Build the Daily Briefing page
+- Recorded commit: `feat(alerts): the Daily Briefing page`
+- Recorded paths: `internal/alerts/, internal/httpapi/`
+- Approximate LOC: +189
+- Cumulative LOC: 21,145
+
