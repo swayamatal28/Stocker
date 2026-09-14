@@ -980,3 +980,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +189
 - Cumulative LOC: 21,145
 
+## 14 Sep 2026 (Mon)
+
+- Feature: Add manual portfolios and holdings
+- Recorded commit: `feat(data): manual portfolios and holdings`
+- Recorded paths: `internal/store/, internal/domain/`
+- Approximate LOC: +173
+- Cumulative LOC: 21,318
+
