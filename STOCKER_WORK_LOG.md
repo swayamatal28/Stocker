@@ -996,3 +996,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +201
 - Cumulative LOC: 21,519
 
+## 17 Sep 2026 (Thu)
+
+- Feature: Add paper-tracking and outcome review
+- Recorded commit: `feat(web): paper-tracking and outcome review`
+- Recorded paths: `apps/web/src/`
+- Approximate LOC: +192
+- Cumulative LOC: 21,711
+
