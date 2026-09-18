@@ -1004,3 +1004,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +192
 - Cumulative LOC: 21,711
 
+## 18 Sep 2026 (Fri)
+
+- Feature: Calculate transparent source reliability
+- Recorded commit: `feat(ingest): transparent source reliability`
+- Recorded paths: `internal/ingest/, workers/ingestion/`
+- Approximate LOC: +167
+- Cumulative LOC: 21,878
+
