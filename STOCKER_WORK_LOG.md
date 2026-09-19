@@ -1012,3 +1012,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +167
 - Cumulative LOC: 21,878
 
+## 19 Sep 2026 (Sat)
+
+- Feature: Build the admin controls
+- Recorded commit: `feat(core): the admin controls`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +108
+- Cumulative LOC: 21,986
+
