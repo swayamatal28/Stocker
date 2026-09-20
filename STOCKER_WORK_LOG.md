@@ -1020,3 +1020,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +108
 - Cumulative LOC: 21,986
 
+## 20 Sep 2026 (Sun)
+
+- Feature: Build the data-quality center
+- Recorded commit: `feat(web): the data-quality center`
+- Recorded paths: `apps/web/src/`
+- Approximate LOC: +169
+- Cumulative LOC: 22,155
+
