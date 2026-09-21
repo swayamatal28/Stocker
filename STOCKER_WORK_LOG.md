@@ -1028,3 +1028,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +169
 - Cumulative LOC: 22,155
 
+## 21 Sep 2026 (Mon)
+
+- Feature: Capture historical signal outcomes
+- Recorded commit: `feat(signal): Capture historical signal outcomes`
+- Recorded paths: `internal/signal/, internal/store/`
+- Approximate LOC: +205
+- Cumulative LOC: 22,360
+
