@@ -1036,3 +1036,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +205
 - Cumulative LOC: 22,360
 
+## 22 Sep 2026 (Tue)
+
+- Feature: Build leakage-safe backtesting
+- Recorded commit: `test(test): leakage-safe backtesting`
+- Recorded paths: `tests/, apps/web/src/*.test.jsx`
+- Approximate LOC: +156
+- Cumulative LOC: 22,516
+
