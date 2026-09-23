@@ -1044,3 +1044,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +156
 - Cumulative LOC: 22,516
 
+## 23 Sep 2026 (Wed)
+
+- Feature: Add Prometheus application metrics
+- Recorded commit: `feat(ops): Prometheus application metrics`
+- Recorded paths: `deployments/, internal/observability/`
+- Approximate LOC: +143
+- Cumulative LOC: 22,659
+
