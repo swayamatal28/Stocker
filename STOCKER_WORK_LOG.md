@@ -1052,3 +1052,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +143
 - Cumulative LOC: 22,659
 
+## 24 Sep 2026 (Thu)
+
+- Feature: Add OpenTelemetry tracing
+- Recorded commit: `feat(ops): OpenTelemetry tracing`
+- Recorded paths: `deployments/, internal/observability/`
+- Approximate LOC: +172
+- Cumulative LOC: 22,831
+
