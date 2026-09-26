@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stocker.local/schemas/ai-analysis-v1.json",
+  "title": "STOCKER grounded article analysis",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary","relevantSymbols","eventCategory","sentiment","sentimentScore","materiality","confidence","timeHorizon","supportingFacts","uncertainties","contradictingEvidence","sectorImpact","secondOrderEffects","sourceCredibility","novelty","retailExplanation","evidence"],
+  "properties": {
+    "summary": {"type":"string","minLength":1,"maxLength":1200},
+    "relevantSymbols": {"type":"array","maxItems":30,"uniqueItems":true,"items":{"type":"string","pattern":"^[A-Z0-9&-]{1,32}$"}},
+    "eventCategory": {"enum":["quarterly_results","annual_results","guidance","order_or_contract","merger_or_acquisition","fundraising","dividend_bonus_split","buyback","promoter_or_institutional_transaction","management_change","regulatory_action","litigation","credit_rating","product_launch","capacity_expansion","plant_shutdown","accident_or_disruption","fraud_or_governance","macroeconomic","rbi_policy","government_policy","tax_or_tariff","commodity_price","currency_movement","sector_development","other"]},
+    "sentiment": {"enum":["bullish","bearish","mixed","neutral"]},
+    "sentimentScore": {"type":"integer","minimum":-100,"maximum":100},
+    "materiality": {"type":"integer","minimum":0,"maximum":100},
+    "confidence": {"type":"integer","minimum":0,"maximum":100},
+    "timeHorizon": {"enum":["intraday","short term","medium term","long term"]},
+    "supportingFacts": {"$ref":"#/$defs/boundedStrings"},
+    "uncertainties": {"$ref":"#/$defs/boundedStrings"},
+    "contradictingEvidence": {"$ref":"#/$defs/boundedStrings"},
+    "sectorImpact": {"type":"string","maxLength":800},
+    "secondOrderEffects": {"$ref":"#/$defs/boundedStrings"},
+    "sourceCredibility": {"type":"string","maxLength":800},
+    "novelty": {"enum":["new","partly_known","already_known","unclear"]},
+    "retailExplanation": {"type":"string","minLength":1,"maxLength":1200},
+    "evidence": {"type":"array","minItems":1,"maxItems":30,"items":{"type":"object","additionalProperties":false,"required":["label","url","source","excerpt","publishedAt"],"properties":{"label":{"type":"string","maxLength":200},"url":{"type":"string","format":"uri"},"source":{"type":"string","maxLength":160},"excerpt":{"type":"string","maxLength":1000},"publishedAt":{"type":"string","format":"date-time"}}}}
+  },
+  "$defs": {"boundedStrings":{"type":"array","maxItems":20,"items":{"type":"string","minLength":1,"maxLength":600}}}
+}

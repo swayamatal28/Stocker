@@ -1,0 +1,2 @@
+/** @type {import('tailwindcss').Config} */
+export default {darkMode:'class',content:['./index.html','./src/**/*.{js,jsx}'],theme:{extend:{colors:{ink:'#08101d',panel:'#0e1929',line:'#213047',positive:'#35d399',negative:'#fb7185',warning:'#fbbf24'},fontFamily:{sans:['Inter','ui-sans-serif','system-ui'],mono:['JetBrains Mono','ui-monospace','monospace']},boxShadow:{glow:'0 0 35px rgba(53,211,153,.08)'}}},plugins:[]}

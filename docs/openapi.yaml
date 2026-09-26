@@ -1,0 +1,166 @@
+openapi: 3.1.0
+info:
+  title: STOCKER API
+  version: 0.1.0
+  description: Evidence-first Indian equity research API. All timestamps are UTC. Signals are informational and not financial advice.
+servers: [{url: http://localhost:8080/api/v1}]
+tags:
+  - {name: Authentication}
+  - {name: Market}
+  - {name: Stocks}
+  - {name: News}
+  - {name: Watchlist}
+  - {name: Alerts}
+  - {name: System}
+paths:
+  /auth/register:
+    post:
+      tags: [Authentication]
+      operationId: register
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RegisterInput'}}}}
+      responses: {'201': {description: Registered, content: {application/json: {schema: {$ref: '#/components/schemas/AuthResponse'}}}}, '409': {$ref: '#/components/responses/Conflict'}}
+  /auth/login:
+    post:
+      tags: [Authentication]
+      operationId: login
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/LoginInput'}}}}
+      responses: {'200': {description: Signed in, content: {application/json: {schema: {$ref: '#/components/schemas/AuthResponse'}}}}, '401': {$ref: '#/components/responses/Unauthorized'}}
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      operationId: refresh
+      responses: {'200': {description: Refresh cookie rotated}, '401': {$ref: '#/components/responses/Unauthorized'}}
+  /auth/logout:
+    post: {tags: [Authentication], operationId: logout, responses: {'204': {description: Session revoked}}}
+  /auth/me:
+    get: {tags: [Authentication], security: [{bearerAuth: []}], operationId: getCurrentUser, responses: {'200': {description: Current authenticated user}, '401': {$ref: '#/components/responses/Unauthorized'}}}
+  /market/overview:
+    get: {tags: [Market], operationId: getMarketOverview, responses: {'200': {description: Indices, breadth and explained mood, content: {application/json: {schema: {type: object}}}}}}
+  /market/sectors:
+    get: {tags: [Market], operationId: getMarketSectors, responses: {'200': {description: Sector heat map (Phase 4)}}}
+  /stocks/search:
+    get:
+      tags: [Stocks]
+      operationId: searchStocks
+      parameters: [{name: q, in: query, required: true, schema: {type: string, minLength: 1, maxLength: 100}}]
+      responses: {'200': {description: Matching security master rows, content: {application/json: {schema: {$ref: '#/components/schemas/SecurityList'}}}}}
+  /stocks/{symbol}:
+    get:
+      tags: [Stocks]
+      operationId: getStock
+      parameters: [{$ref: '#/components/parameters/Symbol'}]
+      responses: {'200': {description: Security snapshot, content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/Security'}, disclaimer: {type: string}}}}}}, '404': {$ref: '#/components/responses/NotFound'}}
+  /stocks/{symbol}/quote:
+    get: {tags: [Stocks], operationId: getStockQuote, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: Quote with source/delay/as-of (Phase 4)}}}
+  /stocks/{symbol}/fundamentals:
+    get: {tags: [Stocks], operationId: getStockFundamentals, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: Period-scoped fundamentals (Phase 4)}}}
+  /stocks/{symbol}/news:
+    get: {tags: [Stocks, News], operationId: getStockNews, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: MongoDB-backed attributed and clustered news, content: {application/json: {schema: {$ref: '#/components/schemas/NewsList'}}}}}}
+  /stocks/{symbol}/signals:
+    get: {tags: [Stocks], operationId: getStockSignals, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: Immutable signal history}}}
+  /news:
+    get:
+      tags: [News]
+      operationId: listNews
+      parameters:
+        - {name: stock, in: query, schema: {type: string}}
+        - {name: sector, in: query, schema: {type: string}}
+        - {name: source, in: query, schema: {type: string}}
+        - {name: officialOnly, in: query, schema: {type: boolean}}
+        - {name: language, in: query, schema: {type: string}}
+        - {name: q, in: query, schema: {type: string}}
+        - {name: from, in: query, schema: {type: string, format: date-time}}
+        - {name: to, in: query, schema: {type: string, format: date-time}}
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 20}}
+      responses: {'200': {description: Filtered, clustered and attributed news, content: {application/json: {schema: {$ref: '#/components/schemas/NewsList'}}}}, '400': {description: Invalid filter}}
+  /news/{id}:
+    get: {tags: [News], operationId: getNews, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Retained article evidence and source policy metadata; AI analysis is a later phase, content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/NewsArticle'}, meta: {type: object}}}}}}, '404': {$ref: '#/components/responses/NotFound'}}}
+  /events:
+    get: {operationId: listEvents, responses: {'200': {description: Corporate and economic calendar (Phase 4)}}}
+  /watchlist:
+    get: {tags: [Watchlist], security: [{bearerAuth: []}], operationId: getWatchlist, responses: {'200': {description: User watchlist, content: {application/json: {schema: {$ref: '#/components/schemas/SecurityList'}}}}, '401': {$ref: '#/components/responses/Unauthorized'}}
+    post:
+      tags: [Watchlist]
+      security: [{bearerAuth: []}]
+      operationId: addWatchlistStock
+      requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: false, required: [symbol], properties: {symbol: {type: string, maxLength: 24}}}}}}
+      responses: {'201': {description: Added}, '409': {$ref: '#/components/responses/Conflict'}, '422': {description: Ten-stock limit reached}}
+  /watchlist/{symbol}:
+    delete: {tags: [Watchlist], security: [{bearerAuth: []}], operationId: removeWatchlistStock, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'204': {description: Removed}}}
+    patch:
+      tags: [Watchlist]
+      security: [{bearerAuth: []}]
+      operationId: pauseWatchlistAlerts
+      parameters: [{$ref: '#/components/parameters/Symbol'}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [alertsPaused], properties: {alertsPaused: {type: boolean}}}}}}
+      responses: {'200': {description: Updated}}
+  /alerts:
+    get: {tags: [Alerts], security: [{bearerAuth: []}], operationId: listAlerts, responses: {'200': {description: Deduplicated alert history}}}
+  /alert-rules:
+    post: {tags: [Alerts], security: [{bearerAuth: []}], operationId: createAlertRule, responses: {'201': {description: Created in Phase 5}, '501': {description: Phase 1 foundation does not yet manage alert rules}}}
+  /alert-rules/{id}:
+    patch: {tags: [Alerts], security: [{bearerAuth: []}], operationId: updateAlertRule, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Updated in Phase 5}, '501': {description: Phase 1 foundation does not yet manage alert rules}}}
+  /briefings:
+    get: {security: [{bearerAuth: []}], operationId: listBriefings, responses: {'200': {description: Evidence-grounded briefings}}}
+  /system/source-health:
+    get: {tags: [System], operationId: getSourceHealth, responses: {'200': {description: Polling and parser health}}}
+  /stream:
+    get: {security: [{bearerAuth: []}], operationId: streamUpdates, description: Authenticated SSE near-real-time stream; delivery speed is bounded by provider policy., responses: {'200': {description: text/event-stream, content: {text/event-stream: {schema: {type: string}}}}, '401': {$ref: '#/components/responses/Unauthorized'}}}
+components:
+  securitySchemes: {bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}}
+  parameters:
+    Symbol: {name: symbol, in: path, required: true, schema: {type: string, maxLength: 32}}
+  responses:
+    Unauthorized: {description: Authentication required}
+    NotFound: {description: Resource not found}
+    Conflict: {description: Resource already exists}
+  schemas:
+    RegisterInput: {type: object, additionalProperties: false, required: [email, password, displayName], properties: {email: {type: string, format: email, maxLength: 254}, password: {type: string, minLength: 12, maxLength: 128}, displayName: {type: string, minLength: 2, maxLength: 80}}}
+    LoginInput: {type: object, additionalProperties: false, required: [email, password], properties: {email: {type: string, format: email}, password: {type: string}}}
+    AuthResponse: {type: object, required: [accessToken, expiresIn, user], properties: {accessToken: {type: string}, expiresIn: {type: integer}, user: {type: object, properties: {id: {$ref: '#/components/schemas/ObjectId'}, email: {type: string}, displayName: {type: string}, role: {type: string}}}}}
+    ObjectId: {type: string, pattern: '^[a-f0-9]{24}$', description: MongoDB ObjectID encoded as lowercase hexadecimal}
+    Security:
+      type: object
+      required: [id, isin, companyName, sector, industry, price, changePercent, signal, newsCount, asOf, source]
+      properties:
+        id: {$ref: '#/components/schemas/ObjectId'}
+        nseSymbol: {type: string}
+        bseCode: {type: string}
+        isin: {type: string}
+        companyName: {type: string}
+        sector: {type: string}
+        industry: {type: string}
+        price: {type: number}
+        changePercent: {type: number}
+        signal: {enum: [Strong positive setup, Positive setup, Neutral/watch, Negative setup, Strong negative setup, Insufficient evidence]}
+        newsCount: {type: integer}
+        asOf: {type: string, format: date-time}
+        source: {type: string}
+        alertsPaused: {type: boolean}
+    SecurityList: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Security'}}, meta: {type: object}}}
+    NewsArticle:
+      type: object
+      required: [id, clusterId, title, body, sourceId, sourceName, sourceType, url, language, attribution, licence, parserVersion, publishedAt, retrievedAt, symbols, sectors, official, synthetic, duplicateCount]
+      properties:
+        id: {$ref: '#/components/schemas/ObjectId'}
+        clusterId: {type: string}
+        title: {type: string}
+        body: {type: string, description: Retained text only when permitted by the source policy}
+        sourceId: {type: string}
+        sourceName: {type: string}
+        sourceType: {enum: [mock, rss_atom, exchange_announcement, json_api, permitted_html]}
+        url: {type: string, format: uri}
+        author: {type: string}
+        language: {type: string}
+        attribution: {type: string}
+        licence: {type: string}
+        parserVersion: {type: string}
+        publishedAt: {type: string, format: date-time}
+        retrievedAt: {type: string, format: date-time}
+        symbols: {type: array, items: {type: string}}
+        sectors: {type: array, items: {type: string}}
+        official: {type: boolean}
+        synthetic: {type: boolean}
+        duplicateCount: {type: integer, minimum: 1}
+    NewsList: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/NewsArticle'}}, meta: {type: object, properties: {page: {type: integer}, pageSize: {type: integer}, total: {type: integer}, totalPages: {type: integer}, clustered: {type: boolean}, syntheticOnly: {type: boolean}}}}}

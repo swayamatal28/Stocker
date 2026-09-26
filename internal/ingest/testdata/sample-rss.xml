@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>STOCKER saved feed fixture</title>
+    <item>
+      <guid>fixture-1</guid>
+      <title>INFY files a project-owned test announcement</title>
+      <link>https://example.invalid/announcements/fixture-1?utm_source=test</link>
+      <description><![CDATA[<p>This is saved, synthetic parser-test content.</p>]]></description>
+      <author>STOCKER fixture</author>
+      <pubDate>Wed, 23 Sep 2026 10:30:00 +0530</pubDate>
+      <category>Information Technology</category>
+    </item>
+  </channel>
+</rss>
