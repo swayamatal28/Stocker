@@ -1068,3 +1068,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +229
 - Cumulative LOC: 23,060
 
+## 26 Sep 2026 (Sat)
+
+- Feature: Complete security and retention hardening
+- Recorded commit: `feat(auth): security and retention hardening`
+- Recorded paths: `internal/auth/, internal/httpapi/`
+- Approximate LOC: +180
+- Cumulative LOC: 23,240
+
