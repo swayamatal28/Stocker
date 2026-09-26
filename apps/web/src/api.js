@@ -160,7 +160,9 @@ export const api = {
     register: (email, password, displayName) => request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName }) }),
     news: (filters) => request(`/news${query(filters)}`),
     newsDetail: (id) => request(`/news/${encodeURIComponent(id)}`),
+    newsAnalysis: (id) => request(`/news/${encodeURIComponent(id)}/analysis`),
     stockNews: (symbol, filters) => request(`/stocks/${encodeURIComponent(symbol)}/news${query(filters)}`),
+    stockSignals: (symbol) => request(`/stocks/${encodeURIComponent(symbol)}/signals`),
     sourceHealth: () => request('/system/source-health'),
     subscribe
 };

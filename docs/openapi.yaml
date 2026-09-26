@@ -57,7 +57,7 @@ paths:
   /stocks/{symbol}/news:
     get: {tags: [Stocks, News], operationId: getStockNews, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: MongoDB-backed attributed and clustered news, content: {application/json: {schema: {$ref: '#/components/schemas/NewsList'}}}}}}
   /stocks/{symbol}/signals:
-    get: {tags: [Stocks], operationId: getStockSignals, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: Immutable signal history}}}
+    get: {tags: [Stocks], operationId: getStockSignals, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: Append-only source-linked signal history, content: {application/json: {schema: {type: object}}}}, '404': {$ref: '#/components/responses/NotFound'}}}
   /news:
     get:
       tags: [News]
@@ -75,7 +75,9 @@ paths:
         - {name: pageSize, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 20}}
       responses: {'200': {description: Filtered, clustered and attributed news, content: {application/json: {schema: {$ref: '#/components/schemas/NewsList'}}}}, '400': {description: Invalid filter}}
   /news/{id}:
-    get: {tags: [News], operationId: getNews, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Retained article evidence and source policy metadata; AI analysis is a later phase, content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/NewsArticle'}, meta: {type: object}}}}}}, '404': {$ref: '#/components/responses/NotFound'}}}
+    get: {tags: [News], operationId: getNews, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Retained article evidence and source policy metadata, content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/NewsArticle'}, meta: {type: object}}}}}}, '404': {$ref: '#/components/responses/NotFound'}}}
+  /news/{id}/analysis:
+    get: {tags: [News], operationId: getNewsAnalysis, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Latest append-only schema-valid grounded analysis and linked signals, content: {application/json: {schema: {type: object}}}}, '404': {description: Analysis not available}}}
   /events:
     get: {operationId: listEvents, responses: {'200': {description: Corporate and economic calendar (Phase 4)}}}
   /watchlist:

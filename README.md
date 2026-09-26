@@ -11,7 +11,8 @@ STOCKER is an evidence-first research application for NSE/BSE-listed companies. 
 - React 19 with plain JavaScript/JSX, Vite, Tailwind, TanStack Query, Zustand, Recharts, responsive navigation, and dark/light themes.
 - Database-enforced 10-stock watchlist with add/remove/pause/resume controls, NSE/BSE/ISIN search across the six-stock Phase 1 fixture universe, delayed mock quotes, persisted source health, authenticated SSE updates, and an explainable fixture signal.
 - Phase 2 RSS/Atom adapter, policy gate, durable cursors, retries, rate limits, circuit breaking, exact/near deduplication, stock links, Mongo-backed news APIs, Redis Streams outbox, dead-letter replay, saved parser fixtures, and a working News Explorer.
-- Versioned scoring engine with evidence gates and unit tests.
+- Phase 3 deterministic local intelligence provider plus an opt-in approved HTTP JSON provider, language detection/translation boundary, entity linking, prompt/model/cost metadata, dual schema validation, numeric grounding, append-only analyses/evidence/signals, Redis consumer worker, and explainability UI.
+- Versioned `signal-v2` scoring engine with evidence gates, contradiction handling, source citations, freshness, and immutable input snapshots.
 
 The mock provider is intentional: no third-party site is scraped and no unlicensed market values are presented as live. See [assumptions and source licensing](docs/assumptions-and-sources.md).
 
@@ -31,6 +32,12 @@ The API seeds one project-owned evidence fixture in mock mode. In a third termin
 go run ./workers/ingestion
 ```
 
+With Redis running, start the Phase 3 consumer in another terminal. The default `local-deterministic` provider is offline, costs nothing, and sends no content externally:
+
+```bash
+go run ./workers/analysis
+```
+
 Open <http://localhost:5173>, register with a password of at least 12 characters, search for `RELIANCE`, `HDFCBANK`, `INFY`, `TCS`, `ITC`, or `LT`, and add up to 10 securities. API docs are in [OpenAPI](docs/openapi.yaml).
 
 ## Verification
@@ -46,6 +53,7 @@ With local MongoDB running, execute the isolated API integration flow (it create
 
 ```powershell
 $env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase1AuthSearchAndWatchlistFlow -count=1 -v
+$env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/intelligence -run TestCollectedItemProducesPersistedAnalysisAndSignal -count=1 -v
 ```
 
 ## Documentation index
@@ -62,4 +70,4 @@ $env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase1Aut
 
 ## Delivery phases
 
-Phase 1 is complete as a working vertical slice, including session recovery, full watchlist management, authenticated live-update plumbing, real navigation for available modules, and Mongo-backed integration coverage. Phase 2 provides an end-to-end, database-backed ingestion and exploration path using a project-owned fixture by default. The reusable RSS/Atom adapter remains fail-closed until its source-policy environment fields explicitly approve automated access; exchange data must not be enabled without the required agreement. Phase 3 AI/provider work and Phases 4–6 remain future implementation work.
+Phases 1–3 are implemented as working vertical slices. Phase 3 can turn a collected, linked item into a schema-valid, source-cited analysis and append-only signal using the offline provider; external AI remains disabled until `AI_PROVIDER=http-json` is explicitly configured after provider approval. Phase 4 market intelligence and Phases 5–6 remain future implementation work.

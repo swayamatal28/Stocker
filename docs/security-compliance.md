@@ -15,6 +15,8 @@
 - [x] Liveness/readiness, bounded server timeouts, circuit-ready source design and graceful shutdown.
 - [x] Secrets are environment-only; `.env` is ignored.
 - [x] Immutable evidence/signal snapshots and audit-log schema.
+- [x] Source text is isolated as untrusted data; provider output must pass embedded JSON Schema, code validation, linked-symbol checks, exact-excerpt checks and numeric grounding.
+- [x] AI provider calls are bounded by timeout, input/output size and an atomic daily cost budget; the default provider is offline and zero-cost.
 - [x] No CAPTCHA, authentication, paywall, robots, access-control or rate-limit bypass.
 
 ## Required before internet production

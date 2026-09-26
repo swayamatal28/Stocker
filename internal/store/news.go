@@ -44,6 +44,8 @@ type newsDocument struct {
 	DuplicateCount   int           `bson:"duplicate_count,omitempty"`
 	OutboxState      string        `bson:"outbox_state"`
 	DeliveryAttempts int           `bson:"delivery_attempts"`
+	AnalysisState    string        `bson:"analysis_state"`
+	AnalysisAttempts int           `bson:"analysis_attempts"`
 }
 
 func toNewsArticle(d newsDocument) domain.NewsArticle {
@@ -145,7 +147,7 @@ func (m *Mongo) SaveNormalized(ctx context.Context, sourceKey string, item domai
 		Author: item.Author, Language: defaultValue(item.Language, "en"), Attribution: item.Attribution, Licence: item.Licence,
 		ContentHash: hash, ClusterID: clusterID, ParserVersion: parserVersion, PublishedAt: item.PublishedAt,
 		RetrievedAt: item.RetrievedAt, Symbols: uniqueUpper(item.Symbols), Sectors: uniqueStrings(item.Sectors),
-		Official: item.Official, Synthetic: item.Synthetic, OutboxState: "pending", DeliveryAttempts: 0,
+		Official: item.Official, Synthetic: item.Synthetic, OutboxState: "pending", DeliveryAttempts: 0, AnalysisState: "pending", AnalysisAttempts: 0,
 	}
 	res, err := m.DB.Collection("normalized_articles").UpdateOne(ctx, bson.M{"content_hash": hash}, bson.M{
 		"$setOnInsert": document,
@@ -499,6 +501,24 @@ func (m *Mongo) MigratePhase2News(ctx context.Context) error {
 			{Key: "delivery_attempts", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$delivery_attempts", 0}}}},
 		}}},
 	})
+	return err
+}
+
+func (m *Mongo) MigratePhase3Intelligence(ctx context.Context) error {
+	_, err := m.DB.Collection("normalized_articles").UpdateMany(ctx, bson.M{}, mongo.Pipeline{
+		{{Key: "$set", Value: bson.D{
+			{Key: "analysis_state", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$analysis_state", "pending"}}}},
+			{Key: "analysis_attempts", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$analysis_attempts", 0}}}},
+		}}},
+	})
+	if err != nil {
+		return err
+	}
+	_, err = m.DB.Collection("signal_versions").UpdateOne(ctx, bson.M{"version": "signal-v2"}, bson.M{"$setOnInsert": bson.M{
+		"version": "signal-v2", "description": "Phase 3 grounded evidence scoring",
+		"weights":    bson.M{"news_sentiment": .16, "materiality": .13, "source_reliability": .08, "ai_confidence": .09, "recency": .08, "confirmations": .07, "price_movement": .11, "volume_anomaly": .08, "sector_movement": .05, "index_movement": .04, "valuation": .05, "financial_health": .08, "contradiction": .08},
+		"created_at": time.Now().UTC(),
+	}}, options.UpdateOne().SetUpsert(true))
 	return err
 }
 

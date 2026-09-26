@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -34,6 +35,19 @@ type Config struct {
 	IngestTimeout                time.Duration
 	IngestPolicyExpiresAt        *time.Time
 	IngestReplayDeadOnStart      bool
+	AIProvider                   string
+	AIEndpoint                   string
+	AIAPIKey                     string
+	AIModel                      string
+	AIPromptVersion              string
+	AISchemaVersion              string
+	AIRequestTimeout             time.Duration
+	AIMaxInputChars              int
+	AIMaxOutputBytes             int
+	AIRequestCostCents           int
+	AIDailyBudgetCents           int
+	AnalysisConsumer             string
+	AnalysisMaxAttempts          int
 }
 
 func Load() (Config, error) {
@@ -59,6 +73,18 @@ func Load() (Config, error) {
 		IngestAutomatedAccessAllowed: envBool("INGEST_AUTOMATED_ACCESS_ALLOWED", false),
 		IngestRequestsPerMinute:      envInt("INGEST_REQUESTS_PER_MINUTE", 10),
 		IngestReplayDeadOnStart:      envBool("INGEST_REPLAY_DEAD_ON_START", false),
+		AIProvider:                   env("AI_PROVIDER", "local-deterministic"),
+		AIEndpoint:                   env("AI_ENDPOINT", ""),
+		AIAPIKey:                     env("AI_API_KEY", ""),
+		AIModel:                      env("AI_MODEL", "stocker-grounded-rules-v1"),
+		AIPromptVersion:              env("AI_PROMPT_VERSION", "analysis-v1"),
+		AISchemaVersion:              env("AI_SCHEMA_VERSION", "ai-analysis-v1"),
+		AIMaxInputChars:              envInt("AI_MAX_INPUT_CHARS", 24000),
+		AIMaxOutputBytes:             envInt("AI_MAX_OUTPUT_BYTES", 65536),
+		AIRequestCostCents:           envInt("AI_REQUEST_COST_CENTS", 0),
+		AIDailyBudgetCents:           envInt("AI_DAILY_BUDGET_CENTS", 100),
+		AnalysisConsumer:             env("ANALYSIS_CONSUMER", "analysis-local-1"),
+		AnalysisMaxAttempts:          envInt("ANALYSIS_MAX_ATTEMPTS", 5),
 	}
 	if c.MockProviders {
 		c.IngestAutomatedAccessAllowed = true
@@ -85,6 +111,9 @@ func Load() (Config, error) {
 	if c.IngestTimeout, err = time.ParseDuration(env("INGEST_TIMEOUT", "15s")); err != nil {
 		return c, fmt.Errorf("INGEST_TIMEOUT: %w", err)
 	}
+	if c.AIRequestTimeout, err = time.ParseDuration(env("AI_REQUEST_TIMEOUT", "30s")); err != nil {
+		return c, fmt.Errorf("AI_REQUEST_TIMEOUT: %w", err)
+	}
 	if value := os.Getenv("INGEST_POLICY_EXPIRES_AT"); value != "" {
 		parsed, parseErr := time.Parse(time.RFC3339, value)
 		if parseErr != nil {
@@ -94,6 +123,24 @@ func Load() (Config, error) {
 	}
 	if c.Environment == "production" && len(c.JWTSecret) < 32 {
 		return c, fmt.Errorf("JWT_SECRET must contain at least 32 characters in production")
+	}
+	if c.AIProvider != "local-deterministic" && c.AIProvider != "http-json" {
+		return c, fmt.Errorf("AI_PROVIDER must be local-deterministic or http-json")
+	}
+	if c.AIProvider == "http-json" && (c.AIEndpoint == "" || c.AIModel == "") {
+		return c, fmt.Errorf("AI_ENDPOINT and AI_MODEL are required when AI_PROVIDER=http-json")
+	}
+	if c.AIProvider == "http-json" {
+		endpoint, parseErr := url.Parse(c.AIEndpoint)
+		if parseErr != nil || endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") {
+			return c, fmt.Errorf("AI_ENDPOINT must be an absolute HTTP(S) URL")
+		}
+		if c.Environment == "production" && endpoint.Scheme != "https" && endpoint.Hostname() != "localhost" && endpoint.Hostname() != "127.0.0.1" {
+			return c, fmt.Errorf("AI_ENDPOINT must use HTTPS outside the local machine in production")
+		}
+	}
+	if c.AIMaxInputChars < 1000 || c.AIMaxOutputBytes < 1024 || c.AIDailyBudgetCents < 0 || c.AIRequestCostCents < 0 || c.AnalysisMaxAttempts < 1 {
+		return c, fmt.Errorf("AI limits and budgets are invalid")
 	}
 	return c, nil
 }

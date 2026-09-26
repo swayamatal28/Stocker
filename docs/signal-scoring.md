@@ -1,6 +1,6 @@
 # Signal scoring specification
 
-Version `signal-v1` is implemented in `internal/signal/engine.go` and persisted in `signal_versions`.
+Version `signal-v2` uses the engine in `internal/signal/engine.go` and is persisted in `signal_versions`. The original `signal-v1` fixture remains historical demonstration data.
 
 All normalized inputs are on `[-100, 100]`, except evidence metadata and confidence/reliability/materiality/recency on `[0, 100]`. Materiality, source reliability, confidence, recency, and confirmations take the sign of news sentiment. Contradiction is always subtractive.
 

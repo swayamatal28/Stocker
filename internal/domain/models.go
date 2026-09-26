@@ -46,36 +46,83 @@ type RawDocument struct {
 }
 
 type Evidence struct {
-	Label, URL, Source, Excerpt string
-	PublishedAt                 time.Time
+	Label       string    `json:"label" bson:"label"`
+	URL         string    `json:"url" bson:"url"`
+	Source      string    `json:"source" bson:"source"`
+	Excerpt     string    `json:"excerpt" bson:"excerpt"`
+	PublishedAt time.Time `json:"publishedAt" bson:"published_at"`
 }
 
 type AIAnalysis struct {
-	Summary               string     `json:"summary"`
-	RelevantSymbols       []string   `json:"relevantSymbols"`
-	EventCategory         string     `json:"eventCategory"`
-	Sentiment             string     `json:"sentiment"`
-	SentimentScore        int        `json:"sentimentScore"`
-	Materiality           int        `json:"materiality"`
-	Confidence            int        `json:"confidence"`
-	TimeHorizon           string     `json:"timeHorizon"`
-	SupportingFacts       []string   `json:"supportingFacts"`
-	Uncertainties         []string   `json:"uncertainties"`
-	ContradictingEvidence []string   `json:"contradictingEvidence"`
-	SectorImpact          string     `json:"sectorImpact"`
-	SecondOrderEffects    []string   `json:"secondOrderEffects"`
-	SourceCredibility     string     `json:"sourceCredibility"`
-	Novelty               string     `json:"novelty"`
-	RetailExplanation     string     `json:"retailExplanation"`
-	Evidence              []Evidence `json:"evidence"`
+	Summary               string     `json:"summary" bson:"summary"`
+	RelevantSymbols       []string   `json:"relevantSymbols" bson:"relevant_symbols"`
+	EventCategory         string     `json:"eventCategory" bson:"event_category"`
+	Sentiment             string     `json:"sentiment" bson:"sentiment"`
+	SentimentScore        int        `json:"sentimentScore" bson:"sentiment_score"`
+	Materiality           int        `json:"materiality" bson:"materiality"`
+	Confidence            int        `json:"confidence" bson:"confidence"`
+	TimeHorizon           string     `json:"timeHorizon" bson:"time_horizon"`
+	SupportingFacts       []string   `json:"supportingFacts" bson:"supporting_facts"`
+	Uncertainties         []string   `json:"uncertainties" bson:"uncertainties"`
+	ContradictingEvidence []string   `json:"contradictingEvidence" bson:"contradicting_evidence"`
+	SectorImpact          string     `json:"sectorImpact" bson:"sector_impact"`
+	SecondOrderEffects    []string   `json:"secondOrderEffects" bson:"second_order_effects"`
+	SourceCredibility     string     `json:"sourceCredibility" bson:"source_credibility"`
+	Novelty               string     `json:"novelty" bson:"novelty"`
+	RetailExplanation     string     `json:"retailExplanation" bson:"retail_explanation"`
+	Evidence              []Evidence `json:"evidence" bson:"evidence"`
 }
 
 type Signal struct {
-	ID, Symbol, Label, Horizon, Version string
-	Strength, Confidence                int
-	Reasons, Risks, Invalidators        []string
-	FreshAt                             time.Time
-	Sources                             []Evidence
+	ID           string     `json:"id" bson:"-"`
+	AnalysisID   string     `json:"analysisId" bson:"-"`
+	Symbol       string     `json:"symbol" bson:"symbol"`
+	Label        string     `json:"label" bson:"label"`
+	Horizon      string     `json:"horizon" bson:"horizon"`
+	Version      string     `json:"version" bson:"version"`
+	Strength     int        `json:"strength" bson:"strength"`
+	Confidence   int        `json:"confidence" bson:"confidence"`
+	Reasons      []string   `json:"reasons" bson:"reasons"`
+	Risks        []string   `json:"risks" bson:"risks"`
+	Invalidators []string   `json:"invalidators" bson:"invalidators"`
+	FreshAt      time.Time  `json:"freshAt" bson:"data_fresh_at"`
+	GeneratedAt  time.Time  `json:"generatedAt" bson:"generated_at"`
+	Sources      []Evidence `json:"sources" bson:"sources"`
+}
+
+type AnalysisArticle struct {
+	Article       NewsArticle        `json:"article"`
+	NumericFacts  map[string]float64 `json:"numericFacts"`
+	LinkedSymbols []string           `json:"linkedSymbols"`
+}
+
+type AIUsage struct {
+	InputUnits  int `json:"inputUnits"`
+	OutputUnits int `json:"outputUnits"`
+	CostCents   int `json:"costCents"`
+}
+
+type AnalysisRecord struct {
+	ID                  string     `json:"id"`
+	ArticleID           string     `json:"articleId"`
+	Provider            string     `json:"provider"`
+	Model               string     `json:"model"`
+	PromptVersion       string     `json:"promptVersion"`
+	PromptHash          string     `json:"promptHash"`
+	PromptText          string     `json:"-"`
+	SchemaVersion       string     `json:"schemaVersion"`
+	DetectedLanguage    string     `json:"detectedLanguage"`
+	AnalysisLanguage    string     `json:"analysisLanguage"`
+	TranslationProvider string     `json:"translationProvider"`
+	TranslationApplied  bool       `json:"translationApplied"`
+	Analysis            AIAnalysis `json:"analysis"`
+	Usage               AIUsage    `json:"usage"`
+	CreatedAt           time.Time  `json:"createdAt"`
+}
+
+type IntelligenceOutput struct {
+	Analysis AnalysisRecord `json:"analysis"`
+	Signals  []Signal       `json:"signals"`
 }
 
 // NewsArticle is the public, policy-aware representation of a collected item.

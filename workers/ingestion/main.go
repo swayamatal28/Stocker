@@ -42,6 +42,10 @@ func main() {
 		log.Error("phase2_news_migration_failed", "error", err)
 		return
 	}
+	if err := db.MigratePhase3Intelligence(ctx); err != nil {
+		log.Error("phase3_intelligence_migration_failed", "error", err)
+		return
+	}
 	if err := db.Seed(ctx); err != nil {
 		log.Error("seed_failed", "error", err)
 		return

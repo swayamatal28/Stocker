@@ -49,3 +49,13 @@ Critical invariants include an atomic conditional update for the 10-item watchli
 - `ingestion_dead_letters` stores terminal outbox failures and replay status.
 
 Story clusters currently use a stable `cluster_id` on each article rather than a separate cluster document. Exact duplicates are rejected by `content_hash`; near duplicates share a cluster after time-windowed text similarity. This keeps Phase 2 queries simple while preserving every collected source record for later evidence analysis.
+
+## Phase 3 collections in active use
+
+- `prompt_versions` stores immutable prompt text, version, schema version and SHA-256 identity.
+- `ai_analyses` stores append-only provider/model metadata, language handling, usage/cost and the validated structured analysis.
+- `evidence_references` stores exact source excerpts linked to the analysis and collected article.
+- `signals` stores append-only `signal-v2` results linked to their analysis, article, security, evidence, freshness watermark and input snapshot.
+- `signal_versions` records scoring weights and version metadata.
+- `ai_daily_budgets` atomically enforces the configured provider/day cost ceiling.
+- `analysis_dead_letters` records items that exhaust analysis attempts without rewriting collected evidence.

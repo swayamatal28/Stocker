@@ -39,6 +39,8 @@ sequenceDiagram
 
 Workers acknowledge only after MongoDB confirms the durable write. The article document carries its own outbox state, so a crash before Redis delivery leaves the event pending for the next cycle. Redis delivery uses Streams (`stocker:news.created`); consumers must deduplicate by article ID because a crash between `XADD` and acknowledgement can cause at-least-once delivery.
 
+The Phase 3 analysis worker consumes `stocker:news.created` through the `analysis-workers` group. It resolves security entities, enforces the provider/day budget before a call, validates and grounds the result, persists the analysis/evidence/signal idempotently, publishes `stocker:analysis.completed`, and acknowledges only after durable persistence or terminal dead-letter handling.
+
 After five failed outbox deliveries the event is copied to `ingestion_dead_letters` and marked dead. Set `INGEST_REPLAY_DEAD_ON_START=true` for an operator-controlled replay of up to 100 dead events. A source circuit opens after five consecutive fetch failures, probes after a cooldown, and never falls back to unauthorised HTML collection. Raw bodies expire through a TTL index according to the recorded source policy; metadata and hashes remain for audit where permitted.
 
 ## Phase 2 API and UI
@@ -48,3 +50,10 @@ After five failed outbox deliveries the event is copied to `ingestion_dead_lette
 - `GET /api/v1/stocks/{symbol}/news` applies the stock link filter.
 - `GET /api/v1/system/source-health` reads persisted source and parser health rather than fixtures.
 - The React **Live news** navigation opens the News Explorer with filters, cluster counts, synthetic/official labels, pagination, and evidence detail.
+
+## Phase 3 API and UI
+
+- `GET /api/v1/news/{id}/analysis` returns the latest append-only analysis and its linked signals.
+- `GET /api/v1/stocks/{symbol}/signals` returns append-only signal history.
+- The News Explorer shows event classification, sentiment, materiality, novelty, cited excerpts and provider/prompt/schema/cost metadata separately from the collected source.
+- The overview signal spotlight reads persisted signal history; it no longer presents a hard-coded conclusion.

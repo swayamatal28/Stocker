@@ -7,7 +7,8 @@ import { api } from './api';
 vi.mock('./api', () => ({
     api: {
         news: vi.fn(),
-        newsDetail: vi.fn()
+        newsDetail: vi.fn(),
+        newsAnalysis: vi.fn()
     }
 }));
 
@@ -32,6 +33,13 @@ const article = {
     synthetic: true,
     duplicateCount: 1
 };
+const intelligence = {
+    analysis: {
+        id: 'analysis-1', provider: 'local-deterministic', model: 'stocker-grounded-rules-v1', promptVersion: 'analysis-v1', schemaVersion: 'ai-analysis-v1', usage: { costCents: 0 },
+        analysis: { eventCategory: 'capacity_expansion', confidence: 72, sentiment: 'bullish', summary: 'Capacity expansion announced.', materiality: 65, timeHorizon: 'medium term', novelty: 'new', evidence: [{ url: article.url, excerpt: article.body }] }
+    },
+    signals: [{ id: 'signal-1', symbol: 'RELIANCE', label: 'Positive setup', confidence: 70 }]
+};
 
 function renderExplorer() {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -42,6 +50,7 @@ describe('NewsExplorer', () => {
     beforeEach(() => {
         api.news.mockResolvedValue({ data: [article], meta: { page: 1, pageSize: 12, total: 1, totalPages: 1, syntheticOnly: true } });
         api.newsDetail.mockResolvedValue({ data: article, meta: {} });
+        api.newsAnalysis.mockResolvedValue({ data: intelligence, meta: { appendOnly: true } });
     });
 
     it('labels synthetic evidence and opens attributed detail', async () => {
@@ -52,6 +61,8 @@ describe('NewsExplorer', () => {
         const sourceLink = await screen.findByRole('link', { name: /Open original source/ });
         expect(api.newsDetail).toHaveBeenCalledWith(article.id);
         expect(screen.getByText((_, element) => element?.textContent === `Attribution: ${article.attribution}`)).toBeInTheDocument();
+        expect(await screen.findByText('Grounded intelligence')).toBeInTheDocument();
+        expect(screen.getByText('Capacity expansion announced.')).toBeInTheDocument();
         expect(sourceLink).toHaveAttribute('href', article.url);
     });
 });

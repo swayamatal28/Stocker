@@ -23,8 +23,8 @@ Publicly viewable does not automatically mean permitted for automated collection
 | News APIs | Disabled | Subscription/API credentials plus rights for headline/full-text storage, summarisation, display, retention, and derived analytics. |
 | RSS/Atom feeds | Adapter boundary only | Feed must explicitly permit automated consumption for this use. Store attribution and link to the publisher; do not assume full-text reuse rights. |
 | Public HTML pages | No site adapter | Written/contractual permission or terms that explicitly allow automation; fresh robots review; conservative domain rate; no login, CAPTCHA, paywall, or access-control bypass. |
-| Hosted AI model | Interface only | API credential, DPA/data residency review, prompt/content retention settings, cost ceiling, model/version allowlist. |
-| Local AI model | Interface only | Model weights licence, hardware capacity, security review, schema reliability, benchmark and hallucination tests. |
+| Hosted AI model | Disabled; generic HTTP JSON adapter implemented | API credential, DPA/data residency review, prompt/content retention settings, cost ceiling, model/version allowlist. |
+| Local deterministic intelligence | Enabled for development and tests | Project-owned rules, offline execution, zero external data transfer, schema/grounding/adversarial regression tests. |
 | Email/Telegram/browser push | Interface/data model only | Provider credentials, consent, unsubscribe/revocation flow, destination minimisation and redaction. |
 
 ## Production onboarding gate for a source
@@ -47,3 +47,9 @@ NSE's official RSS directory describes feeds intended for feed-reader subscripti
 Phase 1 deliberately supports only the six project-owned fixture records (`RELIANCE`, `HDFCBANK`, `INFY`, `TCS`, `ITC`, and `LT`). They exist to verify NSE/BSE symbol and ISIN search plus watchlist workflows; they are not represented as a licensed or complete exchange security master.
 
 Expanding beyond those fixtures is a production data-source decision, not a code default. The operator must select a licensed or expressly permitted security-master provider, record its display/retention/redistribution rights in `source_policies`, and add dated contract tests before importing its universe. Until that approval exists, STOCKER fails closed at the six fixture records.
+
+## Phase 3 model-provider decision
+
+Development defaults to `local-deterministic`, a project-owned offline rules provider. It performs conservative event/sentiment/materiality classification, incurs no model cost, and never transmits source text. This is the enabled Phase 3 provider and the reproducible test oracle; it is not represented as a general-purpose language model.
+
+An `http-json` adapter is available for an approved hosted or local model endpoint. It remains opt-in and requires explicit endpoint/model/key configuration, bounded time/output, a per-request cost estimate, and the daily budget ceiling. Before production use, record the provider/model allowlist, DPA, residency/retention settings, model licence, pricing, evaluation results and incident owner. Non-English translation fails closed unless the selected provider implements the translation contract.

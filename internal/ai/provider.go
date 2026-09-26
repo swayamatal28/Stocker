@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/stocker-app/stocker/internal/domain"
 )
@@ -19,9 +20,14 @@ type GroundedRequest struct {
 	SystemPolicy        string              `json:"systemPolicy"`
 	Documents           []GroundingDocument `json:"documents"`
 	AllowedNumericFacts map[string]float64  `json:"allowedNumericFacts"`
+	AllowedSymbols      []string            `json:"allowedSymbols"`
 	SchemaVersion       string              `json:"schemaVersion"`
 }
-type GroundingDocument struct{ ID, Title, Text, URL, Source string }
+type GroundingDocument struct {
+	ID, Title, Text, URL, Source, Language string
+	PublishedAt                            time.Time
+	Official, Synthetic                    bool
+}
 
 var sentiments = map[string]bool{"bullish": true, "bearish": true, "mixed": true, "neutral": true}
 var horizons = map[string]bool{"intraday": true, "short term": true, "medium term": true, "long term": true}
@@ -29,6 +35,9 @@ var novelties = map[string]bool{"new": true, "partly_known": true, "already_know
 var eventCategories = map[string]bool{"quarterly_results": true, "annual_results": true, "guidance": true, "order_or_contract": true, "merger_or_acquisition": true, "fundraising": true, "dividend_bonus_split": true, "buyback": true, "promoter_or_institutional_transaction": true, "management_change": true, "regulatory_action": true, "litigation": true, "credit_rating": true, "product_launch": true, "capacity_expansion": true, "plant_shutdown": true, "accident_or_disruption": true, "fraud_or_governance": true, "macroeconomic": true, "rbi_policy": true, "government_policy": true, "tax_or_tariff": true, "commodity_price": true, "currency_movement": true, "sector_development": true, "other": true}
 
 func Validate(raw []byte) (domain.AIAnalysis, error) {
+	if err := ValidateJSONSchema(raw); err != nil {
+		return domain.AIAnalysis{}, err
+	}
 	var a domain.AIAnalysis
 	d := json.NewDecoder(stringsReader(raw))
 	d.DisallowUnknownFields()

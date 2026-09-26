@@ -64,19 +64,23 @@ type quoteDocument struct {
 }
 
 type signalDocument struct {
-	ID            bson.ObjectID `bson:"_id,omitempty"`
-	SecurityID    bson.ObjectID `bson:"security_id"`
-	Label         string        `bson:"label"`
-	Score         float64       `bson:"score"`
-	Confidence    int           `bson:"confidence"`
-	Horizon       string        `bson:"horizon"`
-	Version       string        `bson:"version"`
-	Reasons       []string      `bson:"reasons"`
-	Risks         []string      `bson:"risks"`
-	Invalidators  []string      `bson:"invalidators"`
-	InputSnapshot bson.M        `bson:"input_snapshot"`
-	DataFreshAt   time.Time     `bson:"data_fresh_at"`
-	GeneratedAt   time.Time     `bson:"generated_at"`
+	ID            bson.ObjectID     `bson:"_id,omitempty"`
+	SecurityID    bson.ObjectID     `bson:"security_id"`
+	AnalysisID    bson.ObjectID     `bson:"analysis_id,omitempty"`
+	ArticleID     bson.ObjectID     `bson:"article_id,omitempty"`
+	Symbol        string            `bson:"symbol,omitempty"`
+	Label         string            `bson:"label"`
+	Score         float64           `bson:"score"`
+	Confidence    int               `bson:"confidence"`
+	Horizon       string            `bson:"horizon"`
+	Version       string            `bson:"version"`
+	Reasons       []string          `bson:"reasons"`
+	Risks         []string          `bson:"risks"`
+	Invalidators  []string          `bson:"invalidators"`
+	InputSnapshot bson.M            `bson:"input_snapshot"`
+	DataFreshAt   time.Time         `bson:"data_fresh_at"`
+	GeneratedAt   time.Time         `bson:"generated_at"`
+	Sources       []domain.Evidence `bson:"sources,omitempty"`
 }
 
 type watchlistEntry struct {
@@ -167,9 +171,21 @@ func (m *Mongo) EnsureIndexes(ctx context.Context) error {
 		"source_states":          {{Keys: bson.D{{Key: "source_key", Value: 1}}, Options: options.Index().SetUnique(true)}},
 		"source_health_metrics":  {{Keys: bson.D{{Key: "source_key", Value: 1}, {Key: "checked_at", Value: -1}}}},
 		"article_security_links": {{Keys: bson.D{{Key: "article_id", Value: 1}, {Key: "security_id", Value: 1}}, Options: options.Index().SetUnique(true)}},
+		"ai_analyses": {
+			{Keys: bson.D{{Key: "article_id", Value: 1}, {Key: "prompt_version", Value: 1}, {Key: "provider", Value: 1}, {Key: "model", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "created_at", Value: -1}}},
+		},
+		"evidence_references":    {{Keys: bson.D{{Key: "analysis_id", Value: 1}, {Key: "evidence_hash", Value: 1}}, Options: options.Index().SetUnique(true)}},
+		"ai_daily_budgets":       {{Keys: bson.D{{Key: "provider", Value: 1}, {Key: "date", Value: 1}}, Options: options.Index().SetUnique(true)}},
+		"prompt_versions":        {{Keys: bson.D{{Key: "version", Value: 1}, {Key: "prompt_hash", Value: 1}}, Options: options.Index().SetUnique(true)}},
+		"signal_versions":        {{Keys: bson.D{{Key: "version", Value: 1}}, Options: options.Index().SetUnique(true)}},
+		"analysis_dead_letters":  {{Keys: bson.D{{Key: "event_key", Value: 1}}, Options: options.Index().SetUnique(true)}},
 		"ingestion_dead_letters": {{Keys: bson.D{{Key: "event_key", Value: 1}}, Options: options.Index().SetUnique(true)}},
-		"signals":                {{Keys: bson.D{{Key: "security_id", Value: 1}, {Key: "generated_at", Value: -1}}}},
-		"alert_events":           {{Keys: bson.D{{Key: "deduplication_key", Value: 1}}, Options: options.Index().SetUnique(true)}},
+		"signals": {
+			{Keys: bson.D{{Key: "security_id", Value: 1}, {Key: "generated_at", Value: -1}}},
+			{Keys: bson.D{{Key: "analysis_id", Value: 1}, {Key: "security_id", Value: 1}, {Key: "version", Value: 1}}, Options: options.Index().SetUnique(true).SetSparse(true)},
+		},
+		"alert_events": {{Keys: bson.D{{Key: "deduplication_key", Value: 1}}, Options: options.Index().SetUnique(true)}},
 	}
 	for collection, models := range indexes {
 		if _, err := m.DB.Collection(collection).Indexes().CreateMany(ctx, models); err != nil {

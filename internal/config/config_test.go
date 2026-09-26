@@ -26,3 +26,18 @@ func TestMockIngestionUsesProjectOwnedApproval(t *testing.T) {
 		t.Fatal("project-owned mock fixture should be approved")
 	}
 }
+
+func TestHTTPAIProviderRequiresHTTPSInProduction(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("JWT_SECRET", "this-is-a-production-length-secret-value")
+	t.Setenv("AI_PROVIDER", "http-json")
+	t.Setenv("AI_MODEL", "approved-model")
+	t.Setenv("AI_ENDPOINT", "http://models.example.com/analyse")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected non-local production AI endpoint to require HTTPS")
+	}
+	t.Setenv("AI_ENDPOINT", "https://models.example.com/analyse")
+	if _, err := Load(); err != nil {
+		t.Fatalf("expected approved HTTPS endpoint: %v", err)
+	}
+}

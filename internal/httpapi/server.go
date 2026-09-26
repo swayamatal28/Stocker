@@ -62,8 +62,10 @@ func (s *Server) routes() *gin.Engine {
 	v1.GET("/stocks/search", s.search)
 	v1.GET("/stocks/:symbol", s.stock)
 	v1.GET("/stocks/:symbol/news", s.stockNews)
+	v1.GET("/stocks/:symbol/signals", s.stockSignals)
 	v1.GET("/news", s.news)
 	v1.GET("/news/:id", s.newsDetail)
+	v1.GET("/news/:id/analysis", s.newsAnalysis)
 	v1.GET("/system/source-health", s.sourceHealth)
 	protected := v1.Group("")
 	protected.Use(s.requireAuth())
@@ -373,9 +375,9 @@ func (s *Server) stream(c *gin.Context) {
 }
 
 func (s *Server) bridgeNewsEvents(ctx context.Context) {
-	lastID := "$"
+	lastNewsID, lastAnalysisID := "$", "$"
 	for ctx.Err() == nil {
-		streams, err := s.redis.XRead(ctx, &redis.XReadArgs{Streams: []string{"stocker:news.created", lastID}, Count: 100, Block: 5 * time.Second}).Result()
+		streams, err := s.redis.XRead(ctx, &redis.XReadArgs{Streams: []string{"stocker:news.created", "stocker:analysis.completed", lastNewsID, lastAnalysisID}, Count: 100, Block: 5 * time.Second}).Result()
 		if err != nil {
 			if errors.Is(err, redis.Nil) || ctx.Err() != nil {
 				continue
@@ -392,14 +394,19 @@ func (s *Server) bridgeNewsEvents(ctx context.Context) {
 		}
 		for _, stream := range streams {
 			for _, message := range stream.Messages {
-				lastID = message.ID
+				eventName := "news.created"
+				if stream.Stream == "stocker:analysis.completed" {
+					lastAnalysisID, eventName = message.ID, "analysis.completed"
+				} else {
+					lastNewsID = message.ID
+				}
 				payload, ok := message.Values["payload"].(string)
 				if !ok {
 					continue
 				}
 				var event any
 				if json.Unmarshal([]byte(payload), &event) == nil {
-					s.hub.Publish("news.created", event)
+					s.hub.Publish(eventName, event)
 				}
 			}
 		}
@@ -442,9 +449,33 @@ func (s *Server) newsDetail(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"data": article, "meta": gin.H{
-		"evidenceStatus": "collected source item; AI analysis is not part of Phase 2",
+		"evidenceStatus": "collected source item; analysis is available separately when complete",
 		"disclaimer":     "Informational research only — not financial advice.",
 	}})
+}
+func (s *Server) newsAnalysis(c *gin.Context) {
+	output, err := s.db.AnalysisByArticle(c, c.Param("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "analysis not available"})
+		return
+	}
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": output, "meta": gin.H{"appendOnly": true, "disclaimer": "Probabilistic research output, not financial advice."}})
+}
+func (s *Server) stockSignals(c *gin.Context) {
+	signals, err := s.db.SignalsBySymbol(c, c.Param("symbol"), 20)
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "security not found"})
+		return
+	}
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": signals, "meta": gin.H{"appendOnly": true, "count": len(signals), "disclaimer": "Probabilistic research output, not financial advice."}})
 }
 func (s *Server) sourceHealth(c *gin.Context) {
 	health, err := s.db.SourceHealth(c)
