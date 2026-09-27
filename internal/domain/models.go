@@ -18,6 +18,106 @@ type Security struct {
 	Source        string    `json:"source"`
 }
 
+type MarketQuote struct {
+	Symbol        string    `json:"symbol"`
+	Exchange      string    `json:"exchange"`
+	Currency      string    `json:"currency"`
+	LastPrice     float64   `json:"lastPrice"`
+	Change        float64   `json:"change"`
+	ChangePercent float64   `json:"changePercent"`
+	PreviousClose float64   `json:"previousClose"`
+	Open          float64   `json:"open"`
+	DayHigh       float64   `json:"dayHigh"`
+	DayLow        float64   `json:"dayLow"`
+	YearHigh      float64   `json:"yearHigh"`
+	YearLow       float64   `json:"yearLow"`
+	Volume        int64     `json:"volume"`
+	Source        string    `json:"source"`
+	SourceURL     string    `json:"sourceUrl,omitempty"`
+	AsOf          time.Time `json:"asOf"`
+	RetrievedAt   time.Time `json:"retrievedAt"`
+	IsDelayed     bool      `json:"isDelayed"`
+	Synthetic     bool      `json:"synthetic"`
+}
+
+type FundamentalMetric struct {
+	Key    string  `json:"key" bson:"key"`
+	Label  string  `json:"label" bson:"label"`
+	Value  float64 `json:"value" bson:"value"`
+	Unit   string  `json:"unit" bson:"unit"`
+	Period string  `json:"period" bson:"period"`
+	Basis  string  `json:"basis" bson:"basis"`
+}
+
+type Fundamentals struct {
+	Symbol      string              `json:"symbol"`
+	Metrics     []FundamentalMetric `json:"metrics"`
+	Source      string              `json:"source"`
+	SourceURL   string              `json:"sourceUrl,omitempty"`
+	AsOf        time.Time           `json:"asOf"`
+	RetrievedAt time.Time           `json:"retrievedAt"`
+	Synthetic   bool                `json:"synthetic"`
+}
+
+type SectorSnapshot struct {
+	Sector           string    `json:"sector"`
+	CompanyCount     int       `json:"companyCount"`
+	Advances         int       `json:"advances"`
+	Declines         int       `json:"declines"`
+	AverageChange    float64   `json:"averageChangePercent"`
+	AverageSentiment float64   `json:"averageSentiment"`
+	LatestEvidenceAt time.Time `json:"latestEvidenceAt,omitempty"`
+	LatestMarketAsOf time.Time `json:"latestMarketAsOf,omitempty"`
+}
+
+type MarketMover struct {
+	Symbol        string    `json:"symbol"`
+	CompanyName   string    `json:"companyName"`
+	Sector        string    `json:"sector"`
+	LastPrice     float64   `json:"lastPrice"`
+	ChangePercent float64   `json:"changePercent"`
+	Volume        int64     `json:"volume"`
+	AsOf          time.Time `json:"asOf"`
+	Source        string    `json:"source"`
+}
+
+type MarketEvent struct {
+	ID         string    `json:"id"`
+	Symbol     string    `json:"symbol,omitempty"`
+	Title      string    `json:"title"`
+	Category   string    `json:"category"`
+	EventAt    time.Time `json:"eventAt"`
+	Source     string    `json:"source"`
+	SourceURL  string    `json:"sourceUrl"`
+	EvidenceID string    `json:"evidenceId,omitempty"`
+	Official   bool      `json:"official"`
+	Synthetic  bool      `json:"synthetic"`
+}
+
+type PeerSnapshot struct {
+	Symbol        string  `json:"symbol"`
+	CompanyName   string  `json:"companyName"`
+	LastPrice     float64 `json:"lastPrice"`
+	ChangePercent float64 `json:"changePercent"`
+	PERatio       float64 `json:"peRatio"`
+	MarketCap     float64 `json:"marketCap"`
+}
+
+type RiskFlag struct {
+	Code        string `json:"code"`
+	Severity    string `json:"severity"`
+	Title       string `json:"title"`
+	Explanation string `json:"explanation"`
+}
+
+type StockIntelligence struct {
+	Security     Security       `json:"security"`
+	Quote        *MarketQuote   `json:"quote,omitempty"`
+	Fundamentals *Fundamentals  `json:"fundamentals,omitempty"`
+	Peers        []PeerSnapshot `json:"peers"`
+	RiskFlags    []RiskFlag     `json:"riskFlags"`
+}
+
 type WatchlistItem struct {
 	Security
 	AlertsPaused bool      `json:"alertsPaused"`

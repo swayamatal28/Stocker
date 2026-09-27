@@ -35,6 +35,10 @@ func main() {
 		log.Error("legacy_index_migration_failed", "error", err)
 		os.Exit(1)
 	}
+	if err := db.MigratePhase4Market(ctx); err != nil {
+		log.Error("phase4_market_migration_failed", "error", err)
+		os.Exit(1)
+	}
 	if err := db.EnsureIndexes(ctx); err != nil {
 		log.Error("index_initialization_failed", "error", err)
 		os.Exit(1)

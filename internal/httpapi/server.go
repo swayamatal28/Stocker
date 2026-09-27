@@ -17,6 +17,7 @@ import (
 	"github.com/stocker-app/stocker/internal/auth"
 	"github.com/stocker-app/stocker/internal/config"
 	"github.com/stocker-app/stocker/internal/domain"
+	"github.com/stocker-app/stocker/internal/market"
 	"github.com/stocker-app/stocker/internal/store"
 )
 
@@ -26,6 +27,7 @@ type Server struct {
 	redis  *redis.Client
 	auth   *auth.Service
 	hub    *Hub
+	market *market.Service
 	log    *slog.Logger
 	router *gin.Engine
 	cancel context.CancelFunc
@@ -36,7 +38,11 @@ const userIDKey ctxKey = "user_id"
 
 func New(cfg config.Config, db *store.Mongo, rdb *redis.Client, log *slog.Logger) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Server{cfg: cfg, db: db, redis: rdb, auth: auth.New(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, db), hub: NewHub(), log: log, cancel: cancel}
+	marketService, err := market.NewService(cfg, db, log)
+	if err != nil {
+		log.Error("market_service_initialization_failed", "error", err)
+	}
+	s := &Server{cfg: cfg, db: db, redis: rdb, auth: auth.New(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, db), hub: NewHub(), market: marketService, log: log, cancel: cancel}
 	s.router = s.routes()
 	go s.bridgeNewsEvents(ctx)
 	return s
@@ -59,8 +65,15 @@ func (s *Server) routes() *gin.Engine {
 	v1.POST("/auth/refresh", s.requireTrustedOrigin(), s.refresh)
 	v1.POST("/auth/logout", s.requireTrustedOrigin(), s.logout)
 	v1.GET("/market/overview", s.overview)
+	v1.GET("/market/sectors", s.marketSectors)
+	v1.GET("/market/movers", s.marketMovers)
+	v1.GET("/events", s.marketEvents)
 	v1.GET("/stocks/search", s.search)
 	v1.GET("/stocks/:symbol", s.stock)
+	v1.GET("/stocks/:symbol/quote", s.stockQuote)
+	v1.GET("/stocks/:symbol/fundamentals", s.stockFundamentals)
+	v1.GET("/stocks/:symbol/peers", s.stockPeers)
+	v1.GET("/stocks/:symbol/risk-flags", s.stockRiskFlags)
 	v1.GET("/stocks/:symbol/news", s.stockNews)
 	v1.GET("/stocks/:symbol/signals", s.stockSignals)
 	v1.GET("/news", s.news)
@@ -259,7 +272,13 @@ func (s *Server) search(c *gin.Context) {
 		c.JSON(200, gin.H{"data": []any{}, "meta": gin.H{"query": q}})
 		return
 	}
-	items, err := s.db.SearchSecurities(c, q, 20)
+	var items []domain.Security
+	var err error
+	if s.market != nil {
+		items, err = s.market.Search(c, q)
+	} else {
+		items, err = s.db.SearchSecurities(c, q, 20)
+	}
 	if err != nil {
 		fail(c, s.log, err)
 		return
@@ -267,7 +286,10 @@ func (s *Server) search(c *gin.Context) {
 	c.JSON(200, gin.H{"data": items, "meta": gin.H{"query": q, "count": len(items)}})
 }
 func (s *Server) stock(c *gin.Context) {
-	item, err := s.db.SecurityBySymbol(c, c.Param("symbol"))
+	if s.market != nil {
+		s.market.RefreshBestEffort(c, c.Param("symbol"))
+	}
+	item, err := s.db.StockIntelligenceBySymbol(c, c.Param("symbol"))
 	if errors.Is(err, store.ErrNotFound) {
 		c.JSON(404, gin.H{"error": "security not found"})
 		return
@@ -276,7 +298,7 @@ func (s *Server) stock(c *gin.Context) {
 		fail(c, s.log, err)
 		return
 	}
-	c.JSON(200, gin.H{"data": item, "disclaimer": "Informational research only — not financial advice."})
+	c.JSON(200, gin.H{"data": item, "meta": gin.H{"provider": s.marketProviderName(), "disclaimer": "Informational research only — not financial advice."}})
 }
 func (s *Server) overview(c *gin.Context) {
 	v, err := s.db.Overview(c)
@@ -284,8 +306,107 @@ func (s *Server) overview(c *gin.Context) {
 		fail(c, s.log, err)
 		return
 	}
-	c.JSON(200, gin.H{"data": v, "meta": gin.H{"delivery": "Delayed demonstration data; not tick-level real time."}})
+	c.JSON(200, gin.H{"data": v, "meta": gin.H{"delivery": "Provider timestamps and delay labels are authoritative; never assume tick-level real time.", "provider": s.marketProviderName()}})
 }
+
+func (s *Server) marketSectors(c *gin.Context) {
+	items, err := s.db.SectorSnapshots(c)
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items, "meta": gin.H{"count": len(items), "computedFrom": "latest persisted quote and signal per security"}})
+}
+
+func (s *Server) marketMovers(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	items, err := s.db.MarketMovers(c, limit)
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items, "meta": gin.H{"count": len(items), "provider": s.marketProviderName()}})
+}
+
+func (s *Server) marketEvents(c *gin.Context) {
+	from := time.Now().UTC().AddDate(0, -3, 0)
+	if value := c.Query("from"); value != "" {
+		parsed, err := time.Parse(time.RFC3339, value)
+		if err != nil {
+			bad(c, errors.New("from must be an RFC3339 timestamp"))
+			return
+		}
+		from = parsed
+	}
+	items, err := s.db.MarketEvents(c, c.Query("symbol"), from, 50)
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items, "meta": gin.H{"count": len(items), "derivedFrom": "persisted, analyzed source evidence"}})
+}
+
+func (s *Server) stockQuote(c *gin.Context) {
+	if s.market != nil {
+		s.market.RefreshBestEffort(c, c.Param("symbol"))
+	}
+	quote, err := s.db.MarketQuoteBySymbol(c, c.Param("symbol"))
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "market quote not available"})
+		return
+	}
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": quote, "meta": gin.H{"provider": s.marketProviderName(), "freshness": "inspect asOf and isDelayed"}})
+}
+
+func (s *Server) stockFundamentals(c *gin.Context) {
+	if s.market != nil {
+		s.market.RefreshBestEffort(c, c.Param("symbol"))
+	}
+	items, err := s.db.FundamentalsBySymbol(c, c.Param("symbol"))
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "fundamentals not available"})
+		return
+	}
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items, "meta": gin.H{"periodCompatibility": "each metric carries its own period, unit, and basis"}})
+}
+
+func (s *Server) stockPeers(c *gin.Context) {
+	items, err := s.db.PeersBySymbol(c, c.Param("symbol"), 5)
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "security not found"})
+		return
+	}
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items, "meta": gin.H{"basis": "same-sector securities with available snapshots"}})
+}
+
+func (s *Server) stockRiskFlags(c *gin.Context) {
+	items, err := s.db.RiskFlagsBySymbol(c, c.Param("symbol"))
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items, "meta": gin.H{"deterministic": true, "disclaimer": "Risk flags are descriptive checks, not investment advice."}})
+}
+
+func (s *Server) marketProviderName() string {
+	if s.market == nil {
+		return "unavailable"
+	}
+	return s.market.ProviderName()
+}
+
 func (s *Server) watchlist(c *gin.Context) {
 	items, err := s.db.Watchlist(c, c.GetString(string(userIDKey)))
 	if err != nil {
@@ -301,6 +422,9 @@ func (s *Server) addWatchlist(c *gin.Context) {
 	if err := c.ShouldBindJSON(&in); err != nil {
 		bad(c, err)
 		return
+	}
+	if s.market != nil {
+		s.market.RefreshBestEffort(c, in.Symbol)
 	}
 	item, err := s.db.AddWatchlist(c, c.GetString(string(userIDKey)), in.Symbol)
 	if errors.Is(err, store.ErrWatchlistLimit) {
@@ -491,6 +615,9 @@ func parseNewsFilter(c *gin.Context, stock string) (domain.NewsFilter, error) {
 		Query: strings.TrimSpace(c.Query("q")), Stock: strings.TrimSpace(stock),
 		Sector: strings.TrimSpace(c.Query("sector")), Source: strings.TrimSpace(c.Query("source")),
 		Language: strings.TrimSpace(c.Query("language")), Page: 1, PageSize: 20,
+	}
+	if stock != "" {
+		filter.PageSize = 10
 	}
 	if filter.Stock == "" {
 		filter.Stock = strings.TrimSpace(c.Query("stock"))

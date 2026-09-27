@@ -100,9 +100,7 @@ func (m *Mongo) resolveArticleEntities(ctx context.Context, articleID bson.Objec
 			method = "deterministic_symbol"
 		}
 		if !selected {
-			name := strings.TrimSpace(strings.TrimSuffix(strings.ToUpper(security.CompanyName), " LIMITED"))
-			selected = len(name) >= 5 && strings.Contains(haystack, name)
-			method = "deterministic_company_name"
+			selected, method = securityMention(haystack, security)
 		}
 		if !selected {
 			continue

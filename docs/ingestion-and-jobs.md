@@ -57,3 +57,11 @@ After five failed outbox deliveries the event is copied to `ingestion_dead_lette
 - `GET /api/v1/stocks/{symbol}/signals` returns append-only signal history.
 - The News Explorer shows event classification, sentiment, materiality, novelty, cited excerpts and provider/prompt/schema/cost metadata separately from the collected source.
 - The overview signal spotlight reads persisted signal history; it no longer presents a hard-coded conclusion.
+
+## Phase 4 multi-source stock news
+
+`INGEST_SOURCES_JSON` can define multiple independent RSS/Atom sources. Each enabled entry is validated for explicit automated-access approval, attribution, licence/terms URL, robots review, polling rate, timeout, raw-retention period, and policy expiry before any request is made. Each source receives its own processor, cursor, rate state, circuit state, health history, and polling schedule.
+
+Candidate well-known publisher feeds are documented—but deliberately disabled—in `configs/news-sources.example.json`. Enabling them requires a current terms review or written permission. STOCKER retains only feed-provided text allowed by that policy and always links to the original publisher.
+
+Security aliases allow headlines such as “Ola Electric…” to link deterministically to `OLAELEC`. `GET /stocks/{symbol}/news` returns a maximum of 10 newest clustered results by default; exact duplicates are rejected and near-duplicates remain grouped.

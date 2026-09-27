@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -23,6 +24,7 @@ type Config struct {
 	MockProviders                bool
 	RawRetention                 int
 	IngestSourceID               string
+	IngestSourcesJSON            string
 	IngestFeedURL                string
 	IngestAttribution            string
 	IngestLicence                string
@@ -48,6 +50,11 @@ type Config struct {
 	AIDailyBudgetCents           int
 	AnalysisConsumer             string
 	AnalysisMaxAttempts          int
+	MarketProvider               string
+	MarketEndpoint               string
+	MarketAllowInsecureHTTP      bool
+	MarketRequestTimeout         time.Duration
+	MarketRefreshInterval        time.Duration
 }
 
 func Load() (Config, error) {
@@ -64,6 +71,7 @@ func Load() (Config, error) {
 		MockProviders:                envBool("MOCK_PROVIDERS", true),
 		RawRetention:                 envInt("RAW_RETENTION_DAYS", 7),
 		IngestSourceID:               env("INGEST_SOURCE_ID", "mock-exchange"),
+		IngestSourcesJSON:            env("INGEST_SOURCES_JSON", ""),
 		IngestFeedURL:                env("INGEST_FEED_URL", ""),
 		IngestAttribution:            env("INGEST_ATTRIBUTION", "Synthetic STOCKER fixture"),
 		IngestLicence:                env("INGEST_LICENCE", "Project-owned test fixture"),
@@ -85,16 +93,21 @@ func Load() (Config, error) {
 		AIDailyBudgetCents:           envInt("AI_DAILY_BUDGET_CENTS", 100),
 		AnalysisConsumer:             env("ANALYSIS_CONSUMER", "analysis-local-1"),
 		AnalysisMaxAttempts:          envInt("ANALYSIS_MAX_ATTEMPTS", 5),
+		MarketProvider:               env("MARKET_PROVIDER", "fixture"),
+		MarketEndpoint:               env("MARKET_ENDPOINT", "http://65.0.104.9"),
+		MarketAllowInsecureHTTP:      envBool("MARKET_ALLOW_INSECURE_HTTP", false),
 	}
 	if c.MockProviders {
 		c.IngestAutomatedAccessAllowed = true
 	} else {
-		for _, key := range []string{"INGEST_SOURCE_ID", "INGEST_FEED_URL", "INGEST_ATTRIBUTION", "INGEST_LICENCE", "INGEST_TERMS_URL"} {
-			if os.Getenv(key) == "" {
-				return c, fmt.Errorf("%s is required when MOCK_PROVIDERS=false", key)
+		if strings.TrimSpace(c.IngestSourcesJSON) == "" {
+			for _, key := range []string{"INGEST_SOURCE_ID", "INGEST_FEED_URL", "INGEST_ATTRIBUTION", "INGEST_LICENCE", "INGEST_TERMS_URL"} {
+				if os.Getenv(key) == "" {
+					return c, fmt.Errorf("%s is required when MOCK_PROVIDERS=false", key)
+				}
 			}
 		}
-		if !c.IngestAutomatedAccessAllowed {
+		if strings.TrimSpace(c.IngestSourcesJSON) == "" && !c.IngestAutomatedAccessAllowed {
 			return c, fmt.Errorf("INGEST_AUTOMATED_ACCESS_ALLOWED must be explicitly true when MOCK_PROVIDERS=false")
 		}
 	}
@@ -113,6 +126,12 @@ func Load() (Config, error) {
 	}
 	if c.AIRequestTimeout, err = time.ParseDuration(env("AI_REQUEST_TIMEOUT", "30s")); err != nil {
 		return c, fmt.Errorf("AI_REQUEST_TIMEOUT: %w", err)
+	}
+	if c.MarketRequestTimeout, err = time.ParseDuration(env("MARKET_REQUEST_TIMEOUT", "8s")); err != nil {
+		return c, fmt.Errorf("MARKET_REQUEST_TIMEOUT: %w", err)
+	}
+	if c.MarketRefreshInterval, err = time.ParseDuration(env("MARKET_REFRESH_INTERVAL", "5m")); err != nil {
+		return c, fmt.Errorf("MARKET_REFRESH_INTERVAL: %w", err)
 	}
 	if value := os.Getenv("INGEST_POLICY_EXPIRES_AT"); value != "" {
 		parsed, parseErr := time.Parse(time.RFC3339, value)
@@ -141,6 +160,21 @@ func Load() (Config, error) {
 	}
 	if c.AIMaxInputChars < 1000 || c.AIMaxOutputBytes < 1024 || c.AIDailyBudgetCents < 0 || c.AIRequestCostCents < 0 || c.AnalysisMaxAttempts < 1 {
 		return c, fmt.Errorf("AI limits and budgets are invalid")
+	}
+	if c.MarketProvider != "fixture" && c.MarketProvider != "indian-stock-api" {
+		return c, fmt.Errorf("MARKET_PROVIDER must be fixture or indian-stock-api")
+	}
+	if c.MarketRequestTimeout <= 0 || c.MarketRefreshInterval < time.Minute {
+		return c, fmt.Errorf("market timeout and refresh interval are invalid")
+	}
+	if c.MarketProvider == "indian-stock-api" {
+		endpoint, parseErr := url.Parse(c.MarketEndpoint)
+		if parseErr != nil || endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") {
+			return c, fmt.Errorf("MARKET_ENDPOINT must be an absolute HTTP(S) URL")
+		}
+		if endpoint.Scheme == "http" && !c.MarketAllowInsecureHTTP {
+			return c, fmt.Errorf("MARKET_ALLOW_INSECURE_HTTP must be explicitly true for a plaintext market endpoint")
+		}
 	}
 	return c, nil
 }

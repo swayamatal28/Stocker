@@ -37,7 +37,9 @@ paths:
   /market/overview:
     get: {tags: [Market], operationId: getMarketOverview, responses: {'200': {description: Indices, breadth and explained mood, content: {application/json: {schema: {type: object}}}}}}
   /market/sectors:
-    get: {tags: [Market], operationId: getMarketSectors, responses: {'200': {description: Sector heat map (Phase 4)}}}
+    get: {tags: [Market], operationId: getMarketSectors, responses: {'200': {description: Sector breadth and average latest move computed from persisted provider snapshots}}}
+  /market/movers:
+    get: {tags: [Market], operationId: getMarketMovers, parameters: [{name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 10}}], responses: {'200': {description: Securities sorted by absolute daily move}}}
   /stocks/search:
     get:
       tags: [Stocks]
@@ -49,11 +51,15 @@ paths:
       tags: [Stocks]
       operationId: getStock
       parameters: [{$ref: '#/components/parameters/Symbol'}]
-      responses: {'200': {description: Security snapshot, content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/Security'}, disclaimer: {type: string}}}}}}, '404': {$ref: '#/components/responses/NotFound'}}
+      responses: {'200': {description: Security, latest quote/fundamentals, same-sector peers and deterministic risk flags}, '404': {$ref: '#/components/responses/NotFound'}}
   /stocks/{symbol}/quote:
-    get: {tags: [Stocks], operationId: getStockQuote, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: Quote with source/delay/as-of (Phase 4)}}}
+    get: {tags: [Stocks], operationId: getStockQuote, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: Quote with source URL, delay, market as-of and retrieval timestamps}}}
   /stocks/{symbol}/fundamentals:
-    get: {tags: [Stocks], operationId: getStockFundamentals, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: Period-scoped fundamentals (Phase 4)}}}
+    get: {tags: [Stocks], operationId: getStockFundamentals, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: Point-in-time metrics carrying source, period, unit and basis}}}
+  /stocks/{symbol}/peers:
+    get: {tags: [Stocks], operationId: getStockPeers, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: Same-sector peer snapshots}}}
+  /stocks/{symbol}/risk-flags:
+    get: {tags: [Stocks], operationId: getStockRiskFlags, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: Deterministic freshness, drawdown, daily-move, earnings and provider flags}}}
   /stocks/{symbol}/news:
     get: {tags: [Stocks, News], operationId: getStockNews, parameters: [{$ref: '#/components/parameters/Symbol'}], responses: {'200': {description: MongoDB-backed attributed and clustered news, content: {application/json: {schema: {$ref: '#/components/schemas/NewsList'}}}}}}
   /stocks/{symbol}/signals:
@@ -79,7 +85,7 @@ paths:
   /news/{id}/analysis:
     get: {tags: [News], operationId: getNewsAnalysis, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Latest append-only schema-valid grounded analysis and linked signals, content: {application/json: {schema: {type: object}}}}, '404': {description: Analysis not available}}}
   /events:
-    get: {operationId: listEvents, responses: {'200': {description: Corporate and economic calendar (Phase 4)}}}
+    get: {tags: [Market], operationId: listEvents, parameters: [{name: symbol, in: query, schema: {type: string}}, {name: from, in: query, schema: {type: string, format: date-time}}], responses: {'200': {description: Event calendar derived from persisted, grounded news analyses}}}
   /watchlist:
     get: {tags: [Watchlist], security: [{bearerAuth: []}], operationId: getWatchlist, responses: {'200': {description: User watchlist, content: {application/json: {schema: {$ref: '#/components/schemas/SecurityList'}}}}, '401': {$ref: '#/components/responses/Unauthorized'}}
     post:
@@ -124,7 +130,7 @@ components:
     ObjectId: {type: string, pattern: '^[a-f0-9]{24}$', description: MongoDB ObjectID encoded as lowercase hexadecimal}
     Security:
       type: object
-      required: [id, isin, companyName, sector, industry, price, changePercent, signal, newsCount, asOf, source]
+      required: [id, companyName, sector, industry, price, changePercent, signal, newsCount, asOf, source]
       properties:
         id: {$ref: '#/components/schemas/ObjectId'}
         nseSymbol: {type: string}

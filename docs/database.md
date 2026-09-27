@@ -1,6 +1,6 @@
 # MongoDB collection model
 
-The collections retain the complete Phase 1–6 entity envelope. References use `ObjectID` values, while evidence and historical signal snapshots remain immutable. High-volume candle and quote collections can use time-series collections or date-based archival when production volume warrants it.
+The collections retain the Phase 1–6 entity envelope under the revised no-candles/no-charts market scope. References use `ObjectID` values, while evidence and historical signal snapshots remain immutable. Quote snapshots can use time-series collections or date-based archival when production volume warrants it.
 
 ```mermaid
 erDiagram
@@ -28,7 +28,6 @@ erDiagram
   ALERT_RULES ||--o{ ALERT_EVENTS : triggers
   ALERT_EVENTS ||--o{ NOTIFICATION_DELIVERIES : delivers
   SECURITIES ||--o{ MARKET_QUOTES : priced_by
-  SECURITIES ||--o{ HISTORICAL_CANDLES : charts
   SECURITIES ||--o{ FINANCIAL_PERIODS : reports
   FINANCIAL_PERIODS ||--o{ FUNDAMENTALS : contains
   FINANCIAL_PERIODS ||--o{ RATIOS : scopes
@@ -59,3 +58,10 @@ Story clusters currently use a stable `cluster_id` on each article rather than a
 - `signal_versions` records scoring weights and version metadata.
 - `ai_daily_budgets` atomically enforces the configured provider/day cost ceiling.
 - `analysis_dead_letters` records items that exhaust analysis attempts without rewriting collected evidence.
+
+## Phase 4 collections in active use
+
+- `market_quotes` stores append-only provider snapshots with day and 52-week ranges, volume, delay/synthetic flags, source URL, upstream `as_of`, and separate retrieval time.
+- `fundamentals` stores point-in-time metric arrays. Every metric carries its unit, reporting period, and basis so incompatible values are not silently compared.
+- `securities.aliases` supports deterministic company-name linking such as “Ola Electric” to `OLAELEC`, while the NSE symbol, BSE code, and ISIN remain explicit identifiers.
+- Sector breadth, movers, peers, risk flags, and evidence-derived calendar events are computed from the latest persisted quote, fundamental, signal, article, and analysis records rather than stored as untraceable conclusions.

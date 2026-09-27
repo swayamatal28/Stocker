@@ -4,7 +4,7 @@
 flowchart LR
   subgraph Sources[Permitted upstream sources]
     EX[NSE/BSE authorised feeds]
-    MD[Licensed market data]
+    MD[Approved or explicitly labelled experimental market provider]
     NF[News APIs / permitted feeds]
   end
   subgraph Ingestion[Go ingestion plane]
@@ -54,6 +54,7 @@ flowchart LR
 - `api`: stateless Gin service; REST/SSE, auth, validation, rate limits and health checks.
 - `ingestion-worker`: one or more horizontally scaled workers. Redis locks and idempotency keys prevent duplicate polling/processing.
 - `analysis-worker`: independently scaled Phase 3 model consumer with provider-specific concurrency and budget controls.
+- `market service`: provider-neutral current-snapshot boundary. Its experimental public adapter accepts only public symbols/search terms and has no credential-forwarding path.
 - `mongodb`: source of truth for user, evidence, market, signal, audit and historical documents. Unique/TTL/text indexes plus validated writes enforce critical invariants.
 - `redis`: cache, distributed locks, per-minute rate state, streams, retries, dead-letter queues and the API-to-SSE event bridge. Redis is not the durable source of truth.
 - `web`: React/Vite application. Development uses the Vite proxy; production may use any same-origin static host/reverse proxy that preserves `/api/v1` streaming and security headers.
@@ -72,6 +73,7 @@ STOCKER/
 │   ├── domain/              # transport-independent domain types
 │   ├── httpapi/             # Gin routes, middleware, handlers, SSE hub
 │   ├── ingest/              # adapter contract, processor, dedupe/canonicalisation
+│   ├── market/              # provider-neutral quote/search adapters + refresh service
 │   ├── signal/              # configurable/versioned scoring engine
 │   └── store/               # MongoDB repository, indexes and seeds
 ├── workers/

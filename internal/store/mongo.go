@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strings"
 	"time"
@@ -40,10 +41,13 @@ type securityDocument struct {
 	ID          bson.ObjectID `bson:"_id,omitempty"`
 	NSESymbol   string        `bson:"nse_symbol,omitempty"`
 	BSECode     string        `bson:"bse_code,omitempty"`
-	ISIN        string        `bson:"isin"`
+	ISIN        string        `bson:"isin,omitempty"`
 	CompanyName string        `bson:"company_name"`
 	Sector      string        `bson:"sector"`
 	Industry    string        `bson:"industry"`
+	Aliases     []string      `bson:"aliases,omitempty"`
+	Source      string        `bson:"source,omitempty"`
+	SourceURL   string        `bson:"source_url,omitempty"`
 	Active      bool          `bson:"active"`
 	CreatedAt   time.Time     `bson:"created_at"`
 	UpdatedAt   time.Time     `bson:"updated_at"`
@@ -55,12 +59,19 @@ type quoteDocument struct {
 	Open          float64       `bson:"open,omitempty"`
 	High          float64       `bson:"high,omitempty"`
 	Low           float64       `bson:"low,omitempty"`
+	YearHigh      float64       `bson:"year_high,omitempty"`
+	YearLow       float64       `bson:"year_low,omitempty"`
+	Change        float64       `bson:"change,omitempty"`
+	Currency      string        `bson:"currency,omitempty"`
 	PreviousClose float64       `bson:"previous_close,omitempty"`
 	Volume        int64         `bson:"volume,omitempty"`
 	ChangePercent float64       `bson:"change_percent"`
 	Source        string        `bson:"source"`
+	SourceURL     string        `bson:"source_url,omitempty"`
 	IsDelayed     bool          `bson:"is_delayed"`
+	Synthetic     bool          `bson:"synthetic"`
 	AsOf          time.Time     `bson:"as_of"`
+	RetrievedAt   time.Time     `bson:"retrieved_at,omitempty"`
 }
 
 type signalDocument struct {
@@ -142,6 +153,32 @@ func (m *Mongo) MigrateLegacyIndexNames(ctx context.Context) error {
 	return nil
 }
 
+// MigratePhase4Market makes ISIN optional for provider-discovered instruments.
+// NSE/BSE symbol indexes remain unique, so an incomplete upstream listing can
+// never create two records for the same traded symbol.
+func (m *Mongo) MigratePhase4Market(ctx context.Context) error {
+	cursor, err := m.DB.Collection("securities").Indexes().List(ctx)
+	if err != nil {
+		return err
+	}
+	defer cursor.Close(ctx)
+	for cursor.Next(ctx) {
+		var index struct {
+			Name   string `bson:"name"`
+			Sparse bool   `bson:"sparse"`
+		}
+		if err := cursor.Decode(&index); err != nil {
+			return err
+		}
+		if index.Name == "isin_1" && !index.Sparse {
+			if err := m.DB.Collection("securities").Indexes().DropOne(ctx, index.Name); err != nil {
+				return fmt.Errorf("replace phase 1 ISIN index: %w", err)
+			}
+		}
+	}
+	return cursor.Err()
+}
+
 func (m *Mongo) EnsureIndexes(ctx context.Context) error {
 	indexes := map[string][]mongo.IndexModel{
 		"users": {{Keys: bson.D{{Key: "email", Value: 1}}, Options: options.Index().SetUnique(true)}},
@@ -150,13 +187,20 @@ func (m *Mongo) EnsureIndexes(ctx context.Context) error {
 			{Keys: bson.D{{Key: "expires_at", Value: 1}}, Options: options.Index().SetExpireAfterSeconds(0)},
 		},
 		"securities": {
-			{Keys: bson.D{{Key: "isin", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "isin", Value: 1}}, Options: options.Index().SetUnique(true).SetSparse(true)},
 			{Keys: bson.D{{Key: "nse_symbol", Value: 1}}, Options: options.Index().SetUnique(true).SetSparse(true)},
 			{Keys: bson.D{{Key: "bse_code", Value: 1}}, Options: options.Index().SetUnique(true).SetSparse(true)},
 			{Keys: bson.D{{Key: "company_name", Value: "text"}, {Key: "nse_symbol", Value: "text"}, {Key: "bse_code", Value: "text"}, {Key: "isin", Value: "text"}}},
 		},
-		"watchlists":    {{Keys: bson.D{{Key: "user_id", Value: 1}}, Options: options.Index().SetUnique(true)}},
-		"market_quotes": {{Keys: bson.D{{Key: "security_id", Value: 1}, {Key: "as_of", Value: -1}}}},
+		"watchlists": {{Keys: bson.D{{Key: "user_id", Value: 1}}, Options: options.Index().SetUnique(true)}},
+		"market_quotes": {
+			{Keys: bson.D{{Key: "security_id", Value: 1}, {Key: "as_of", Value: -1}}},
+			{Keys: bson.D{{Key: "security_id", Value: 1}, {Key: "source", Value: 1}, {Key: "as_of", Value: 1}}, Options: options.Index().SetUnique(true)},
+		},
+		"fundamentals": {
+			{Keys: bson.D{{Key: "security_id", Value: 1}, {Key: "as_of", Value: -1}}},
+			{Keys: bson.D{{Key: "security_id", Value: 1}, {Key: "source", Value: 1}, {Key: "as_of", Value: 1}}, Options: options.Index().SetUnique(true)},
+		},
 		"normalized_articles": {
 			{Keys: bson.D{{Key: "content_hash", Value: 1}}, Options: options.Index().SetUnique(true)},
 			{Keys: bson.D{{Key: "title", Value: "text"}, {Key: "body_text", Value: "text"}}},
@@ -204,6 +248,7 @@ func (m *Mongo) Seed(ctx context.Context) error {
 		{NSESymbol: "TCS", BSECode: "532540", ISIN: "INE467B01029", CompanyName: "Tata Consultancy Services Limited", Sector: "Information Technology", Industry: "IT Services & Consulting", Active: true},
 		{NSESymbol: "ITC", BSECode: "500875", ISIN: "INE154A01025", CompanyName: "ITC Limited", Sector: "Consumer Staples", Industry: "Diversified FMCG", Active: true},
 		{NSESymbol: "LT", BSECode: "500510", ISIN: "INE018A01030", CompanyName: "Larsen & Toubro Limited", Sector: "Industrials", Industry: "Engineering", Active: true},
+		{NSESymbol: "OLAELEC", BSECode: "544225", ISIN: "INE0LXG01040", CompanyName: "Ola Electric Mobility Limited", Sector: "Consumer Discretionary", Industry: "Automobiles - Electric Mobility", Aliases: []string{"OLA ELECTRIC", "OLA ELECTRIC MOBILITY"}, Active: true, Source: "NSE filing identity fixture", SourceURL: "https://nsearchives.nseindia.com/"},
 	}
 	for _, seed := range seeds {
 		seed.CreatedAt, seed.UpdatedAt = now, now
@@ -315,7 +360,11 @@ func (m *Mongo) RevokeRefreshSession(ctx context.Context, hash []byte) error {
 }
 
 func (m *Mongo) hydrateSecurity(ctx context.Context, d securityDocument) (domain.Security, error) {
-	s := domain.Security{ID: d.ID.Hex(), NSESymbol: d.NSESymbol, BSECode: d.BSECode, ISIN: d.ISIN, CompanyName: d.CompanyName, Sector: d.Sector, Industry: d.Industry, AsOf: d.UpdatedAt, Source: "Seed security master", Signal: "Insufficient evidence"}
+	source := d.Source
+	if source == "" {
+		source = "Seed security master"
+	}
+	s := domain.Security{ID: d.ID.Hex(), NSESymbol: d.NSESymbol, BSECode: d.BSECode, ISIN: d.ISIN, CompanyName: d.CompanyName, Sector: d.Sector, Industry: d.Industry, AsOf: d.UpdatedAt, Source: source, Signal: "Insufficient evidence"}
 	var q quoteDocument
 	if err := m.DB.Collection("market_quotes").FindOne(ctx, bson.M{"security_id": d.ID}, options.FindOne().SetSort(bson.D{{Key: "as_of", Value: -1}})).Decode(&q); err == nil {
 		s.Price = q.LastPrice
@@ -496,7 +545,46 @@ func (m *Mongo) Overview(ctx context.Context) (map[string]any, error) {
 		}
 		indices = append(indices, map[string]any{"symbol": d.Symbol, "value": d.Value, "changePercent": d.ChangePercent, "source": d.Source, "asOf": d.AsOf})
 	}
-	return map[string]any{"indices": indices, "mood": map[string]any{"label": "Cautiously positive", "score": 62, "explanation": "Breadth is positive, while mixed global cues keep conviction moderate.", "asOf": time.Now().UTC(), "source": "Mock market provider — delayed demonstration data"}, "breadth": map[string]int{"advances": 1378, "declines": 982, "unchanged": 126}}, cur.Err()
+	if err := cur.Err(); err != nil {
+		return nil, err
+	}
+	sectors, err := m.SectorSnapshots(ctx)
+	if err != nil {
+		return nil, err
+	}
+	advances, declines, unchanged := 0, 0, 0
+	changeTotal, companyCount := 0.0, 0
+	latest := time.Time{}
+	for _, sector := range sectors {
+		advances += sector.Advances
+		declines += sector.Declines
+		unchanged += sector.CompanyCount - sector.Advances - sector.Declines
+		changeTotal += sector.AverageChange * float64(sector.CompanyCount)
+		companyCount += sector.CompanyCount
+		if sector.LatestMarketAsOf.After(latest) {
+			latest = sector.LatestMarketAsOf
+		}
+	}
+	averageChange := 0.0
+	if companyCount > 0 {
+		averageChange = changeTotal / float64(companyCount)
+	}
+	score := int(math.Max(0, math.Min(100, 50+averageChange*10)))
+	label := "Balanced"
+	if score >= 60 {
+		label = "Constructive"
+	} else if score <= 40 {
+		label = "Cautious"
+	}
+	movers, err := m.MarketMovers(ctx, 8)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"indices": indices, "sectors": sectors, "movers": movers,
+		"mood":    map[string]any{"label": label, "score": score, "explanation": "Calculated from the latest persisted breadth and average move; it is descriptive, not predictive.", "asOf": latest, "source": "Persisted provider snapshots"},
+		"breadth": map[string]int{"advances": advances, "declines": declines, "unchanged": unchanged},
+	}, nil
 }
 
 func (m *Mongo) SeenHash(ctx context.Context, hash string) (bool, error) {

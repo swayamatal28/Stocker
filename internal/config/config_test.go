@@ -41,3 +41,29 @@ func TestHTTPAIProviderRequiresHTTPSInProduction(t *testing.T) {
 		t.Fatalf("expected approved HTTPS endpoint: %v", err)
 	}
 }
+
+func TestPlaintextMarketProviderRequiresExplicitOptIn(t *testing.T) {
+	t.Setenv("MARKET_PROVIDER", "indian-stock-api")
+	t.Setenv("MARKET_ENDPOINT", "http://65.0.104.9")
+	t.Setenv("MARKET_ALLOW_INSECURE_HTTP", "false")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected plaintext market provider to fail closed")
+	}
+	t.Setenv("MARKET_ALLOW_INSECURE_HTTP", "true")
+	config, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.MarketProvider != "indian-stock-api" {
+		t.Fatalf("unexpected market provider: %s", config.MarketProvider)
+	}
+}
+
+func TestMultiSourceIngestionUsesPerSourceApproval(t *testing.T) {
+	t.Setenv("MOCK_PROVIDERS", "false")
+	t.Setenv("INGEST_SOURCES_JSON", `[{"id":"publisher"}]`)
+	t.Setenv("INGEST_AUTOMATED_ACCESS_ALLOWED", "false")
+	if _, err := Load(); err != nil {
+		t.Fatalf("multi-source approval is validated per source: %v", err)
+	}
+}

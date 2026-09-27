@@ -188,15 +188,16 @@ func (m *Mongo) linkArticleSecurities(ctx context.Context, articleID bson.Object
 			return err
 		}
 		_, selected := explicit[security.NSESymbol]
-		if !selected && security.NSESymbol != "" {
-			selected, _ = regexp.MatchString(`(^|[^A-Z0-9])`+regexp.QuoteMeta(security.NSESymbol)+`([^A-Z0-9]|$)`, haystack)
+		method := "declared_symbol"
+		if !selected {
+			selected, method = securityMention(haystack, security)
 		}
 		if !selected {
 			continue
 		}
 		_, err := m.DB.Collection("article_security_links").UpdateOne(ctx,
 			bson.M{"article_id": articleID, "security_id": security.ID},
-			bson.M{"$setOnInsert": bson.M{"article_id": articleID, "security_id": security.ID, "link_method": "deterministic_symbol", "confidence": 100, "created_at": time.Now().UTC()}},
+			bson.M{"$setOnInsert": bson.M{"article_id": articleID, "security_id": security.ID, "link_method": method, "confidence": 100, "created_at": time.Now().UTC()}},
 			options.UpdateOne().SetUpsert(true))
 		if err != nil {
 			return err
@@ -209,6 +210,27 @@ func (m *Mongo) linkArticleSecurities(ctx context.Context, articleID bson.Object
 	}
 	_, err = m.DB.Collection("normalized_articles").UpdateOne(ctx, bson.M{"_id": articleID}, bson.M{"$set": bson.M{"symbols": uniqueUpper(symbols), "sectors": uniqueStrings(sectors)}})
 	return err
+}
+
+func securityMention(haystack string, security securityDocument) (bool, string) {
+	if security.NSESymbol != "" {
+		matched, _ := regexp.MatchString(`(^|[^A-Z0-9])`+regexp.QuoteMeta(security.NSESymbol)+`([^A-Z0-9]|$)`, haystack)
+		if matched {
+			return true, "deterministic_symbol"
+		}
+	}
+	aliases := append([]string(nil), security.Aliases...)
+	name := strings.TrimSpace(strings.TrimSuffix(strings.ToUpper(security.CompanyName), " LIMITED"))
+	if name != "" {
+		aliases = append(aliases, name)
+	}
+	for _, alias := range aliases {
+		alias = strings.ToUpper(strings.TrimSpace(alias))
+		if len(alias) >= 5 && strings.Contains(haystack, alias) {
+			return true, "deterministic_company_alias"
+		}
+	}
+	return false, ""
 }
 
 func (m *Mongo) ListNews(ctx context.Context, filter domain.NewsFilter) (domain.NewsPage, error) {
