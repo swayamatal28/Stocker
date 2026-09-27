@@ -1076,3 +1076,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +180
 - Cumulative LOC: 23,240
 
+## 27 Sep 2026 (Sun)
+
+- Feature: Add integration, browser, load, and recovery tests
+- Recorded commit: `test(test): integration, browser, load, and recovery tests`
+- Recorded paths: `tests/, apps/web/src/*.test.jsx`
+- Approximate LOC: +150
+- Cumulative LOC: 23,390
+
