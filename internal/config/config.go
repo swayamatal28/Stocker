@@ -55,6 +55,7 @@ type Config struct {
 	MarketAllowInsecureHTTP      bool
 	MarketRequestTimeout         time.Duration
 	MarketRefreshInterval        time.Duration
+	AlertEvaluationInterval      time.Duration
 }
 
 func Load() (Config, error) {
@@ -132,6 +133,12 @@ func Load() (Config, error) {
 	}
 	if c.MarketRefreshInterval, err = time.ParseDuration(env("MARKET_REFRESH_INTERVAL", "5m")); err != nil {
 		return c, fmt.Errorf("MARKET_REFRESH_INTERVAL: %w", err)
+	}
+	if c.AlertEvaluationInterval, err = time.ParseDuration(env("ALERT_EVALUATION_INTERVAL", "1m")); err != nil {
+		return c, fmt.Errorf("ALERT_EVALUATION_INTERVAL: %w", err)
+	}
+	if c.AlertEvaluationInterval < 10*time.Second {
+		return c, fmt.Errorf("ALERT_EVALUATION_INTERVAL must be at least 10s")
 	}
 	if value := os.Getenv("INGEST_POLICY_EXPIRES_AT"); value != "" {
 		parsed, parseErr := time.Parse(time.RFC3339, value)

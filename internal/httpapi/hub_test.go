@@ -29,3 +29,20 @@ func TestHubCountsBackpressureDrops(t *testing.T) {
 		t.Fatalf("expected one dropped event, got %d", dropped)
 	}
 }
+
+func TestHubTargetedPublishIsUserIsolated(t *testing.T) {
+	hub := NewHub()
+	first, doneFirst := hub.SubscribeFor("user-one")
+	defer doneFirst()
+	second, doneSecond := hub.SubscribeFor("user-two")
+	defer doneSecond()
+	hub.PublishTo("user-one", "alert.created", map[string]string{"id": "alert-one"})
+	if got := string(<-first); got != `{"data":{"id":"alert-one"},"event":"alert.created"}` {
+		t.Fatalf("unexpected targeted event: %s", got)
+	}
+	select {
+	case value := <-second:
+		t.Fatalf("targeted event leaked to another user: %s", value)
+	default:
+	}
+}

@@ -67,3 +67,10 @@ func TestMultiSourceIngestionUsesPerSourceApproval(t *testing.T) {
 		t.Fatalf("multi-source approval is validated per source: %v", err)
 	}
 }
+
+func TestAlertEvaluationIntervalHasSafeFloor(t *testing.T) {
+	t.Setenv("ALERT_EVALUATION_INTERVAL", "1s")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected an excessively frequent alert evaluation interval to fail")
+	}
+}

@@ -28,7 +28,7 @@ flowchart LR
   subgraph Product[Product plane]
     API[Go/Gin REST + SSE]
     WEB[React web app]
-    NOTIFY[Notification providers]
+    NOTIFY[In-app delivery / optional consented providers]
     OBS[Logs / metrics / traces]
   end
   Sources --> AD
@@ -55,6 +55,7 @@ flowchart LR
 - `ingestion-worker`: one or more horizontally scaled workers. Redis locks and idempotency keys prevent duplicate polling/processing.
 - `analysis-worker`: independently scaled Phase 3 model consumer with provider-specific concurrency and budget controls.
 - `market service`: provider-neutral current-snapshot boundary. Its experimental public adapter accepts only public symbols/search terms and has no credential-forwarding path.
+- `alert service`: watchlist-scoped periodic and immediate evaluator with cluster/rule/cooldown idempotency, quiet-hour deferral, durable in-app delivery and user-targeted SSE publication.
 - `mongodb`: source of truth for user, evidence, market, signal, audit and historical documents. Unique/TTL/text indexes plus validated writes enforce critical invariants.
 - `redis`: cache, distributed locks, per-minute rate state, streams, retries, dead-letter queues and the API-to-SSE event bridge. Redis is not the durable source of truth.
 - `web`: React/Vite application. Development uses the Vite proxy; production may use any same-origin static host/reverse proxy that preserves `/api/v1` streaming and security headers.
@@ -68,6 +69,7 @@ STOCKER/
 │   └── web/                 # React/Vite/Tailwind application
 ├── internal/
 │   ├── ai/                  # provider-neutral model contract + validation
+│   ├── alerts/              # Phase 5 rule validation, evaluation and delivery
 │   ├── auth/                # hashing, access JWTs, refresh rotation
 │   ├── config/              # typed environment configuration
 │   ├── domain/              # transport-independent domain types

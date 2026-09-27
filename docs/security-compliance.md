@@ -18,6 +18,8 @@
 - [x] Source text is isolated as untrusted data; provider output must pass embedded JSON Schema, code validation, linked-symbol checks, exact-excerpt checks and numeric grounding.
 - [x] AI provider calls are bounded by timeout, input/output size and an atomic daily cost budget; the default provider is offline and zero-cost.
 - [x] No CAPTCHA, authentication, paywall, robots, access-control or rate-limit bypass.
+- [x] Alert rules and histories are owner-filtered; targeted SSE delivery is isolated by authenticated user ID, and quiet-hour delivery rechecks pause/revocation state.
+- [x] Only in-app notifications are active; external channel preferences never collect or transmit a destination without a configured consent workflow.
 
 ## Required before internet production
 

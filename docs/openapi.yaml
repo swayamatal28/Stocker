@@ -105,12 +105,26 @@ paths:
       responses: {'200': {description: Updated}}
   /alerts:
     get: {tags: [Alerts], security: [{bearerAuth: []}], operationId: listAlerts, responses: {'200': {description: Deduplicated alert history}}}
+  /alerts/{id}/read:
+    patch: {tags: [Alerts], security: [{bearerAuth: []}], operationId: markAlertRead, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Alert marked read}, '404': {$ref: '#/components/responses/NotFound'}}}
   /alert-rules:
-    post: {tags: [Alerts], security: [{bearerAuth: []}], operationId: createAlertRule, responses: {'201': {description: Created in Phase 5}, '501': {description: Phase 1 foundation does not yet manage alert rules}}}
+    get: {tags: [Alerts], security: [{bearerAuth: []}], operationId: listAlertRules, responses: {'200': {description: User-owned active and paused rules}}}
+    post:
+      tags: [Alerts]
+      security: [{bearerAuth: []}]
+      operationId: createAlertRule
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AlertRuleInput'}}}}
+      responses: {'201': {description: Created and immediately evaluated}, '422': {description: Stock is not watchlisted or rule limit reached}}
   /alert-rules/{id}:
-    patch: {tags: [Alerts], security: [{bearerAuth: []}], operationId: updateAlertRule, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Updated in Phase 5}, '501': {description: Phase 1 foundation does not yet manage alert rules}}}
+    patch: {tags: [Alerts], security: [{bearerAuth: []}], operationId: updateAlertRule, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'200': {description: Updated and evaluated when enabled}, '404': {$ref: '#/components/responses/NotFound'}}}
+    delete: {tags: [Alerts], security: [{bearerAuth: []}], operationId: revokeAlertRule, parameters: [{name: id, in: path, required: true, schema: {$ref: '#/components/schemas/ObjectId'}}], responses: {'204': {description: Delivery revoked; alert history retained}, '404': {$ref: '#/components/responses/NotFound'}}}
   /briefings:
-    get: {security: [{bearerAuth: []}], operationId: listBriefings, responses: {'200': {description: Evidence-grounded briefings}}}
+    get:
+      tags: [Alerts]
+      security: [{bearerAuth: []}]
+      operationId: getBriefing
+      parameters: [{name: kind, in: query, schema: {enum: [morning, closing, daily], default: daily}}]
+      responses: {'200': {description: Evidence-grounded watchlist briefing}}
   /system/source-health:
     get: {tags: [System], operationId: getSourceHealth, responses: {'200': {description: Polling and parser health}}}
   /stream:
@@ -128,6 +142,28 @@ components:
     LoginInput: {type: object, additionalProperties: false, required: [email, password], properties: {email: {type: string, format: email}, password: {type: string}}}
     AuthResponse: {type: object, required: [accessToken, expiresIn, user], properties: {accessToken: {type: string}, expiresIn: {type: integer}, user: {type: object, properties: {id: {$ref: '#/components/schemas/ObjectId'}, email: {type: string}, displayName: {type: string}, role: {type: string}}}}}
     ObjectId: {type: string, pattern: '^[a-f0-9]{24}$', description: MongoDB ObjectID encoded as lowercase hexadecimal}
+    AlertChannels:
+      type: object
+      required: [inApp]
+      properties: {inApp: {type: boolean, const: true}, browser: {type: boolean, description: Preference only; provider not configured}, email: {type: boolean, description: Preference only; provider not configured}, telegram: {type: boolean, description: Preference only; provider not configured}}
+    QuietHours:
+      type: object
+      properties: {enabled: {type: boolean}, start: {type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$'}, end: {type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$'}, timezone: {type: string, default: Asia/Kolkata}}
+    AlertRuleInput:
+      type: object
+      required: [name, symbol, ruleType]
+      properties:
+        name: {type: string, minLength: 3, maxLength: 80}
+        symbol: {type: string, maxLength: 24}
+        ruleType: {enum: [event, price_above, price_below, change_above, change_below]}
+        threshold: {type: number, exclusiveMinimum: 0}
+        eventCategories: {type: array, maxItems: 10, items: {type: string}}
+        minimumConfidence: {type: integer, minimum: 0, maximum: 100, default: 0}
+        minimumSeverity: {enum: [low, medium, high], default: low}
+        cooldownMinutes: {type: integer, minimum: 1, maximum: 10080, default: 60}
+        channels: {$ref: '#/components/schemas/AlertChannels'}
+        quietHours: {$ref: '#/components/schemas/QuietHours'}
+        enabled: {type: boolean, default: true}
     Security:
       type: object
       required: [id, companyName, sector, industry, price, changePercent, signal, newsCount, asOf, source]

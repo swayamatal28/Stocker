@@ -32,6 +32,8 @@ describe('Phase 1 onboarding flow', () => {
                 return json({ data: [] });
             if (url === '/api/v1/stocks/RELIANCE/signals')
                 return json({ data: [] });
+            if (url === '/api/v1/alerts?limit=50')
+                return json({ data: [], meta: { unread: 0 } });
             if (url.startsWith('/api/v1/stocks/search'))
                 return json({ data: [security] });
             if (url === '/api/v1/watchlist' && init.method === 'POST') {

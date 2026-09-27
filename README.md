@@ -13,6 +13,7 @@ STOCKER is an evidence-first research application for NSE/BSE-listed companies. 
 - Phase 2 RSS/Atom adapter, policy gate, durable cursors, retries, rate limits, circuit breaking, exact/near deduplication, stock links, Mongo-backed news APIs, Redis Streams outbox, dead-letter replay, saved parser fixtures, and a working News Explorer.
 - Phase 3 deterministic local intelligence provider plus an opt-in approved HTTP JSON provider, language detection/translation boundary, entity linking, prompt/model/cost metadata, dual schema validation, numeric grounding, append-only analyses/evidence/signals, Redis consumer worker, and explainability UI.
 - Phase 4 provider-neutral market service with a credential-free public-API adapter, current/day/52-week quote fields, period/unit/basis-aware fundamentals, OLA Electric identity and alias linking, sectors, breadth, movers, evidence-derived events, peers, risk flags, and a stock-detail UI with up to 10 deduplicated articles. Candles and charts are intentionally excluded from the revised scope.
+- Phase 5 watchlist-scoped event and market-threshold rules, confidence/severity gates, cluster/rule/cooldown deduplication, quiet-hour deferral, user-isolated in-app/SSE delivery, inspectable evidence, pause/revoke/read controls, and morning/closing/daily briefings.
 - Versioned `signal-v2` scoring engine with evidence gates, contradiction handling, source citations, freshness, and immutable input snapshots.
 
 The mock provider is intentional: no third-party site is scraped and no unlicensed market values are presented as live. See [assumptions and source licensing](docs/assumptions-and-sources.md).
@@ -41,6 +42,8 @@ go run ./workers/analysis
 
 Phase 4 also defaults to the offline fixture provider. To opt into the supplied experimental public endpoint, set `MARKET_PROVIDER=indian-stock-api` and explicitly set `MARKET_ALLOW_INSECURE_HTTP=true`. No API key is used or forwarded; only public symbols/search terms leave STOCKER. If the endpoint is unavailable, persisted snapshots remain labelled with their original age rather than being presented as fresh.
 
+Phase 5 evaluates active alert rules every `ALERT_EVALUATION_INTERVAL` (one minute by default) and immediately after rule creation or resumption. In-app delivery is enabled; browser, email and Telegram preferences remain unavailable until the user explicitly consents to a destination and an operator configures a provider. No notification destination is collected by the current build.
+
 For multiple approved news feeds, set `INGEST_SOURCES_JSON` to a JSON array following [the disabled candidate register](configs/news-sources.example.json). Every enabled source must first have `automatedAccessAllowed`, `robotsChecked`, attribution, licence, terms, rate, timeout, retention, and policy-expiry values reviewed. The worker gives every feed an independent schedule and cursor.
 
 Open <http://localhost:5173>, register with a password of at least 12 characters, search for `OLAELEC`, `RELIANCE`, `HDFCBANK`, `INFY`, `TCS`, `ITC`, or `LT`, and add up to 10 securities. API docs are in [OpenAPI](docs/openapi.yaml).
@@ -60,6 +63,7 @@ With local MongoDB running, execute the isolated API integration flow (it create
 $env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase1AuthSearchAndWatchlistFlow -count=1 -v
 $env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/intelligence -run TestCollectedItemProducesPersistedAnalysisAndSignal -count=1 -v
 $env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase4MarketAPIs -count=1 -v
+$env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase5RuleTriggersOneInspectableUserIsolatedAlert -count=1 -v
 ```
 
 ## Documentation index
@@ -76,4 +80,4 @@ $env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase4Mar
 
 ## Delivery phases
 
-Phases 1–4 are implemented as working vertical slices under the revised no-candles/no-charts scope. Phase 3 can turn a collected, linked item into a schema-valid, source-cited analysis and append-only signal using the offline provider. Phase 4 defaults to transparent synthetic fixtures; the experimental public market adapter is opt-in because its upstream data rights and availability are not guaranteed. Phases 5–6 remain future work.
+Phases 1–5 are implemented as working vertical slices under the revised no-candles/no-charts scope. Phase 3 can turn a collected, linked item into a schema-valid, source-cited analysis and append-only signal using the offline provider. Phase 4 defaults to transparent synthetic fixtures; the experimental public market adapter is opt-in because its upstream data rights and availability are not guaranteed. Phase 5 delivers evidence-backed in-app monitoring without collecting external notification destinations. Phase 6 remains future work.

@@ -124,6 +124,98 @@ type WatchlistItem struct {
 	AddedAt      time.Time `json:"addedAt"`
 }
 
+type AlertChannels struct {
+	InApp    bool `json:"inApp" bson:"in_app"`
+	Browser  bool `json:"browser" bson:"browser"`
+	Email    bool `json:"email" bson:"email"`
+	Telegram bool `json:"telegram" bson:"telegram"`
+}
+
+type QuietHours struct {
+	Enabled  bool   `json:"enabled" bson:"enabled"`
+	Start    string `json:"start" bson:"start"`
+	End      string `json:"end" bson:"end"`
+	Timezone string `json:"timezone" bson:"timezone"`
+}
+
+type AlertRule struct {
+	ID                string        `json:"id"`
+	UserID            string        `json:"-"`
+	Name              string        `json:"name"`
+	Symbol            string        `json:"symbol"`
+	RuleType          string        `json:"ruleType"`
+	Threshold         *float64      `json:"threshold,omitempty"`
+	EventCategories   []string      `json:"eventCategories,omitempty"`
+	MinimumConfidence int           `json:"minimumConfidence"`
+	MinimumSeverity   string        `json:"minimumSeverity"`
+	CooldownMinutes   int           `json:"cooldownMinutes"`
+	Channels          AlertChannels `json:"channels"`
+	QuietHours        QuietHours    `json:"quietHours"`
+	Enabled           bool          `json:"enabled"`
+	CreatedAt         time.Time     `json:"createdAt"`
+	UpdatedAt         time.Time     `json:"updatedAt"`
+}
+
+type AlertEvent struct {
+	ID                    string            `json:"id"`
+	UserID                string            `json:"-"`
+	DeduplicationKey      string            `json:"-"`
+	RuleID                string            `json:"ruleId"`
+	RuleName              string            `json:"ruleName"`
+	RuleType              string            `json:"ruleType"`
+	Symbol                string            `json:"symbol"`
+	Severity              string            `json:"severity"`
+	Title                 string            `json:"title"`
+	Explanation           string            `json:"explanation"`
+	Confidence            int               `json:"confidence"`
+	Evidence              []Evidence        `json:"evidence"`
+	ConditionSnapshot     map[string]any    `json:"conditionSnapshot"`
+	SourceAsOf            time.Time         `json:"sourceAsOf"`
+	TriggeredAt           time.Time         `json:"triggeredAt"`
+	DeliverAfter          time.Time         `json:"deliverAfter"`
+	DeliveredAt           *time.Time        `json:"deliveredAt,omitempty"`
+	ReadAt                *time.Time        `json:"readAt,omitempty"`
+	DeliveryStatus        string            `json:"deliveryStatus"`
+	ExternalChannelStatus map[string]string `json:"externalChannelStatus,omitempty"`
+}
+
+type AlertCandidate struct {
+	Symbol            string
+	Kind              string
+	Category          string
+	ClusterID         string
+	Title             string
+	Explanation       string
+	Severity          string
+	Confidence        int
+	Price             float64
+	ChangePercent     float64
+	SourceAsOf        time.Time
+	Evidence          []Evidence
+	ConditionSnapshot map[string]any
+}
+
+type BriefingItem struct {
+	Symbol      string     `json:"symbol" bson:"symbol"`
+	Headline    string     `json:"headline" bson:"headline"`
+	Explanation string     `json:"explanation" bson:"explanation"`
+	Severity    string     `json:"severity" bson:"severity"`
+	Confidence  int        `json:"confidence" bson:"confidence"`
+	AsOf        time.Time  `json:"asOf" bson:"as_of"`
+	Evidence    []Evidence `json:"evidence" bson:"evidence"`
+}
+
+type Briefing struct {
+	ID          string         `json:"id"`
+	Kind        string         `json:"kind"`
+	Title       string         `json:"title"`
+	Summary     string         `json:"summary"`
+	Items       []BriefingItem `json:"items"`
+	GeneratedAt time.Time      `json:"generatedAt"`
+	PeriodKey   string         `json:"periodKey"`
+	Synthetic   bool           `json:"synthetic"`
+}
+
 type User struct {
 	ID, Email, DisplayName, PasswordHash, Role string
 	CreatedAt                                  time.Time

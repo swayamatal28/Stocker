@@ -20,6 +20,8 @@ import (
 var ErrNotFound = errors.New("not found")
 var ErrConflict = errors.New("already exists")
 var ErrWatchlistLimit = errors.New("watchlist limit is 10")
+var ErrNotWatchlisted = errors.New("alert rules can only target a stock on the user's watchlist")
+var ErrAlertRuleLimit = errors.New("alert rule limit is 50")
 
 type Mongo struct {
 	Client *mongo.Client
@@ -229,7 +231,20 @@ func (m *Mongo) EnsureIndexes(ctx context.Context) error {
 			{Keys: bson.D{{Key: "security_id", Value: 1}, {Key: "generated_at", Value: -1}}},
 			{Keys: bson.D{{Key: "analysis_id", Value: 1}, {Key: "security_id", Value: 1}, {Key: "version", Value: 1}}, Options: options.Index().SetUnique(true).SetSparse(true)},
 		},
-		"alert_events": {{Keys: bson.D{{Key: "deduplication_key", Value: 1}}, Options: options.Index().SetUnique(true)}},
+		"alert_rules": {
+			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "created_at", Value: -1}}},
+			{Keys: bson.D{{Key: "enabled", Value: 1}, {Key: "revoked_at", Value: 1}}},
+		},
+		"alert_events": {
+			{Keys: bson.D{{Key: "deduplication_key", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "triggered_at", Value: -1}}},
+			{Keys: bson.D{{Key: "delivery_status", Value: 1}, {Key: "deliver_after", Value: 1}}},
+		},
+		"notification_deliveries": {{Keys: bson.D{{Key: "alert_event_id", Value: 1}, {Key: "channel", Value: 1}}, Options: options.Index().SetUnique(true)}},
+		"briefings": {
+			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "kind", Value: 1}, {Key: "period_key", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "generated_at", Value: -1}}},
+		},
 	}
 	for collection, models := range indexes {
 		if _, err := m.DB.Collection(collection).Indexes().CreateMany(ctx, models); err != nil {

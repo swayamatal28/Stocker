@@ -65,3 +65,10 @@ Story clusters currently use a stable `cluster_id` on each article rather than a
 - `fundamentals` stores point-in-time metric arrays. Every metric carries its unit, reporting period, and basis so incompatible values are not silently compared.
 - `securities.aliases` supports deterministic company-name linking such as “Ola Electric” to `OLAELEC`, while the NSE symbol, BSE code, and ISIN remain explicit identifiers.
 - Sector breadth, movers, peers, risk flags, and evidence-derived calendar events are computed from the latest persisted quote, fundamental, signal, article, and analysis records rather than stored as untraceable conclusions.
+
+## Phase 5 collections in active use
+
+- `alert_rules` stores user-owned, watchlist-scoped event or market-threshold rules with severity/confidence gates, cooldown, quiet hours and per-channel preferences. Revocation is soft so prior deliveries remain auditable.
+- `alert_events` stores the exact rule snapshot, triggering values, source timestamp, cited evidence, delivery/read state and a unique SHA-256 deduplication key built from user, rule and cluster or cooldown bucket.
+- `notification_deliveries` enforces one delivery per alert event and channel. Only `in_app` is active; external destinations are neither collected nor contacted.
+- `briefings` stores one evidence-grounded morning, closing or daily watchlist snapshot per user and UTC date. Items cite either an immutable signal source or a timestamped market-provider snapshot.

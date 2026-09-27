@@ -14,6 +14,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	alerting "github.com/stocker-app/stocker/internal/alerts"
 	"github.com/stocker-app/stocker/internal/auth"
 	"github.com/stocker-app/stocker/internal/config"
 	"github.com/stocker-app/stocker/internal/domain"
@@ -22,15 +23,16 @@ import (
 )
 
 type Server struct {
-	cfg    config.Config
-	db     *store.Mongo
-	redis  *redis.Client
-	auth   *auth.Service
-	hub    *Hub
-	market *market.Service
-	log    *slog.Logger
-	router *gin.Engine
-	cancel context.CancelFunc
+	cfg      config.Config
+	db       *store.Mongo
+	redis    *redis.Client
+	auth     *auth.Service
+	hub      *Hub
+	market   *market.Service
+	alerting *alerting.Service
+	log      *slog.Logger
+	router   *gin.Engine
+	cancel   context.CancelFunc
 }
 type ctxKey string
 
@@ -42,9 +44,16 @@ func New(cfg config.Config, db *store.Mongo, rdb *redis.Client, log *slog.Logger
 	if err != nil {
 		log.Error("market_service_initialization_failed", "error", err)
 	}
-	s := &Server{cfg: cfg, db: db, redis: rdb, auth: auth.New(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, db), hub: NewHub(), market: marketService, log: log, cancel: cancel}
+	hub := NewHub()
+	s := &Server{cfg: cfg, db: db, redis: rdb, auth: auth.New(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, db), hub: hub, market: marketService, log: log, cancel: cancel}
+	var refresher alerting.Refresher
+	if marketService != nil {
+		refresher = func(ctx context.Context, symbol string) { marketService.RefreshBestEffort(ctx, symbol) }
+	}
+	s.alerting = alerting.NewService(db, log, func(userID string, event domain.AlertEvent) { hub.PublishTo(userID, "alert.created", event) }, refresher, cfg.AlertEvaluationInterval)
 	s.router = s.routes()
 	go s.bridgeNewsEvents(ctx)
+	go s.alerting.Run(ctx)
 	return s
 }
 func (s *Server) Handler() http.Handler { return s.router }
@@ -89,8 +98,11 @@ func (s *Server) routes() *gin.Engine {
 	protected.DELETE("/watchlist/:symbol", s.deleteWatchlist)
 	protected.PATCH("/watchlist/:symbol", s.pauseWatchlist)
 	protected.GET("/alerts", s.alerts)
-	protected.POST("/alert-rules", s.notImplemented("Alert-rule management is scheduled for Phase 5."))
-	protected.PATCH("/alert-rules/:id", s.notImplemented("Alert-rule management is scheduled for Phase 5."))
+	protected.PATCH("/alerts/:id/read", s.markAlertRead)
+	protected.GET("/alert-rules", s.alertRules)
+	protected.POST("/alert-rules", s.createAlertRule)
+	protected.PATCH("/alert-rules/:id", s.updateAlertRule)
+	protected.DELETE("/alert-rules/:id", s.deleteAlertRule)
 	protected.GET("/briefings", s.briefings)
 	return r
 }
@@ -476,7 +488,7 @@ func (s *Server) stream(c *gin.Context) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
-	ch, done := s.hub.Subscribe()
+	ch, done := s.hub.SubscribeFor(c.GetString(string(userIDKey)))
 	defer done()
 	c.SSEvent("connected", gin.H{"at": time.Now().UTC(), "freshness": "near-real-time subject to provider delay"})
 	ticker := time.NewTicker(25 * time.Second)
@@ -658,16 +670,220 @@ func parseNewsFilter(c *gin.Context, stock string) (domain.NewsFilter, error) {
 	}
 	return filter, nil
 }
+
+type alertRuleInput struct {
+	Name              string                `json:"name"`
+	Symbol            string                `json:"symbol"`
+	RuleType          string                `json:"ruleType"`
+	Threshold         *float64              `json:"threshold"`
+	EventCategories   []string              `json:"eventCategories"`
+	MinimumConfidence *int                  `json:"minimumConfidence"`
+	MinimumSeverity   string                `json:"minimumSeverity"`
+	CooldownMinutes   *int                  `json:"cooldownMinutes"`
+	Channels          *domain.AlertChannels `json:"channels"`
+	QuietHours        *domain.QuietHours    `json:"quietHours"`
+	Enabled           *bool                 `json:"enabled"`
+}
+
+type alertRulePatch struct {
+	Name              *string               `json:"name"`
+	Symbol            *string               `json:"symbol"`
+	RuleType          *string               `json:"ruleType"`
+	Threshold         *float64              `json:"threshold"`
+	EventCategories   *[]string             `json:"eventCategories"`
+	MinimumConfidence *int                  `json:"minimumConfidence"`
+	MinimumSeverity   *string               `json:"minimumSeverity"`
+	CooldownMinutes   *int                  `json:"cooldownMinutes"`
+	Channels          *domain.AlertChannels `json:"channels"`
+	QuietHours        *domain.QuietHours    `json:"quietHours"`
+	Enabled           *bool                 `json:"enabled"`
+}
+
+func (s *Server) alertRules(c *gin.Context) {
+	rules, err := s.db.AlertRules(c, c.GetString(string(userIDKey)))
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": rules, "meta": gin.H{"count": len(rules), "limit": 50, "activeDeliveryChannels": []string{"inApp"}}})
+}
+
+func (s *Server) createAlertRule(c *gin.Context) {
+	var input alertRuleInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		bad(c, err)
+		return
+	}
+	minimumConfidence, cooldownMinutes, enabled := 0, 60, true
+	if input.MinimumConfidence != nil {
+		minimumConfidence = *input.MinimumConfidence
+	}
+	if input.CooldownMinutes != nil {
+		cooldownMinutes = *input.CooldownMinutes
+	}
+	if input.Enabled != nil {
+		enabled = *input.Enabled
+	}
+	channels := domain.AlertChannels{InApp: true}
+	if input.Channels != nil {
+		channels = *input.Channels
+	}
+	quietHours := domain.QuietHours{}
+	if input.QuietHours != nil {
+		quietHours = *input.QuietHours
+	}
+	rule, err := alerting.NormalizeAndValidate(domain.AlertRule{Name: input.Name, Symbol: input.Symbol, RuleType: input.RuleType, Threshold: input.Threshold, EventCategories: input.EventCategories, MinimumConfidence: minimumConfidence, MinimumSeverity: input.MinimumSeverity, CooldownMinutes: cooldownMinutes, Channels: channels, QuietHours: quietHours, Enabled: enabled})
+	if err != nil {
+		bad(c, err)
+		return
+	}
+	rule, err = s.db.CreateAlertRule(c, c.GetString(string(userIDKey)), rule)
+	if errors.Is(err, store.ErrNotWatchlisted) || errors.Is(err, store.ErrAlertRuleLimit) {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	if _, evalErr := s.alerting.EvaluateUser(c, rule.UserID, time.Now().UTC()); evalErr != nil && !errors.Is(evalErr, store.ErrNotFound) {
+		s.log.Warn("alert_immediate_evaluation_failed", "rule_id", rule.ID, "error", evalErr)
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": rule})
+}
+
+func (s *Server) updateAlertRule(c *gin.Context) {
+	userID := c.GetString(string(userIDKey))
+	rule, err := s.db.AlertRuleByID(c, userID, c.Param("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "alert rule not found"})
+		return
+	}
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	var patch alertRulePatch
+	if err := c.ShouldBindJSON(&patch); err != nil {
+		bad(c, err)
+		return
+	}
+	if patch.Name != nil {
+		rule.Name = *patch.Name
+	}
+	if patch.Symbol != nil {
+		rule.Symbol = *patch.Symbol
+	}
+	if patch.RuleType != nil {
+		rule.RuleType = *patch.RuleType
+	}
+	if patch.Threshold != nil {
+		rule.Threshold = patch.Threshold
+	}
+	if patch.EventCategories != nil {
+		rule.EventCategories = *patch.EventCategories
+	}
+	if patch.MinimumConfidence != nil {
+		rule.MinimumConfidence = *patch.MinimumConfidence
+	}
+	if patch.MinimumSeverity != nil {
+		rule.MinimumSeverity = *patch.MinimumSeverity
+	}
+	if patch.CooldownMinutes != nil {
+		rule.CooldownMinutes = *patch.CooldownMinutes
+	}
+	if patch.Channels != nil {
+		rule.Channels = *patch.Channels
+	}
+	if patch.QuietHours != nil {
+		rule.QuietHours = *patch.QuietHours
+	}
+	if patch.Enabled != nil {
+		rule.Enabled = *patch.Enabled
+	}
+	rule, err = alerting.NormalizeAndValidate(rule)
+	if err != nil {
+		bad(c, err)
+		return
+	}
+	rule, err = s.db.UpdateAlertRule(c, userID, rule)
+	if errors.Is(err, store.ErrNotWatchlisted) {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	if rule.Enabled {
+		if _, evalErr := s.alerting.EvaluateUser(c, userID, time.Now().UTC()); evalErr != nil && !errors.Is(evalErr, store.ErrNotFound) {
+			s.log.Warn("alert_immediate_evaluation_failed", "rule_id", rule.ID, "error", evalErr)
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": rule})
+}
+
+func (s *Server) deleteAlertRule(c *gin.Context) {
+	err := s.db.RevokeAlertRule(c, c.GetString(string(userIDKey)), c.Param("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "alert rule not found"})
+		return
+	}
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func (s *Server) alerts(c *gin.Context) {
-	c.JSON(200, gin.H{"data": []any{}, "meta": gin.H{"deduplication": "cluster+rule+cooldown"}})
+	limit := 50
+	if value := c.Query("limit"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 1 || parsed > 100 {
+			bad(c, errors.New("limit must be between 1 and 100"))
+			return
+		}
+		limit = parsed
+	}
+	events, err := s.db.Alerts(c, c.GetString(string(userIDKey)), limit)
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	unread := 0
+	for _, event := range events {
+		if event.DeliveredAt != nil && event.ReadAt == nil {
+			unread++
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": events, "meta": gin.H{"count": len(events), "unread": unread, "deduplication": "cluster+rule+cooldown", "delivery": "in-app"}})
+}
+
+func (s *Server) markAlertRead(c *gin.Context) {
+	event, err := s.db.MarkAlertRead(c, c.GetString(string(userIDKey)), c.Param("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "alert not found"})
+		return
+	}
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": event})
 }
 func (s *Server) briefings(c *gin.Context) {
-	c.JSON(200, gin.H{"data": []any{}, "meta": gin.H{"message": "Briefings are generated only from collected evidence."}})
-}
-func (s *Server) notImplemented(message string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented", "detail": message})
+	kind := strings.ToLower(strings.TrimSpace(c.DefaultQuery("kind", "daily")))
+	briefing, err := s.db.GenerateBriefing(c, c.GetString(string(userIDKey)), kind, time.Now().UTC())
+	if err != nil {
+		if strings.Contains(err.Error(), "briefing kind") {
+			bad(c, err)
+			return
+		}
+		fail(c, s.log, err)
+		return
 	}
+	c.JSON(http.StatusOK, gin.H{"data": []domain.Briefing{briefing}, "meta": gin.H{"evidenceOnly": true, "availableKinds": []string{"morning", "closing", "daily"}}})
 }
 func bad(c *gin.Context, err error) {
 	c.JSON(400, gin.H{"error": "invalid request", "detail": err.Error()})

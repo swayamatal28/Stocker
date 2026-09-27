@@ -61,3 +61,9 @@ The revised Phase 4 scope excludes candles and charts. STOCKER now stores curren
 `MARKET_PROVIDER=indian-stock-api` enables the credential-free adapter for the user-supplied public service. The adapter has no mechanism to forward API keys, cookies, authorization headers, user IDs, watchlists, article text, prompts or environment values. Because the supplied endpoint is plaintext HTTP, it additionally requires `MARKET_ALLOW_INSECURE_HTTP=true`; only public symbols/search terms are transmitted. The upstream implementation obtains data from Yahoo Finance and includes an NSE autocomplete attempt, so it is labelled experimental/unverified rather than licensed or guaranteed real-time. The endpoint timed out during the 2026-09-27 delivery check; the tested fixture provider remains the fail-closed default.
 
 Multi-source RSS/Atom ingestion is supported through `INGEST_SOURCES_JSON`, with an independent approval, attribution, terms URL, rate, timeout, retention period and expiry for every source. Candidate publisher feeds are listed disabled in `configs/news-sources.example.json`. Screener is not included because its published service licence limits material to personal, non-commercial transitory viewing. Publisher entries must not be enabled merely because a feed or webpage is publicly reachable.
+
+## Phase 5 delivery decision
+
+The first active notification channel is in-app delivery over the authenticated, user-targeted SSE stream. Browser push, email and Telegram flags are modelled as per-rule preferences but remain `not_configured`; the application does not collect an address, device subscription or Telegram identifier until an operator adds a consented provider and deletion/revocation workflow.
+
+Portfolio and paper-tracking modes are not enabled. The Phase 5 exit criterion does not require them, and adding position/transaction data would expand privacy, suitability and retention obligations beyond the current evidence-first watchlist product.
