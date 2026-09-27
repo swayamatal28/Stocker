@@ -1,4 +1,4 @@
-.PHONY: dev-api dev-web dev-ingestion dev-analysis test lint
+.PHONY: dev-api dev-web dev-ingestion dev-analysis maintenance test lint load security
 
 dev-api:
 	go run ./apps/api
@@ -12,6 +12,9 @@ dev-ingestion:
 dev-analysis:
 	go run ./workers/analysis
 
+maintenance:
+	go run ./workers/maintenance
+
 test:
 	go test ./apps/api ./internal/... ./workers/...
 	npm --prefix apps/web test -- --run
@@ -19,3 +22,9 @@ test:
 lint:
 	go vet ./apps/api ./internal/... ./workers/...
 	npm --prefix apps/web run lint
+
+load:
+	powershell -ExecutionPolicy Bypass -File scripts/run-load.ps1
+
+security:
+	powershell -ExecutionPolicy Bypass -File scripts/security-check.ps1

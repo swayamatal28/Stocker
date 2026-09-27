@@ -1,0 +1,21 @@
+[Unit]
+Description=STOCKER API
+After=network-online.target mongod.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=stocker
+Group=stocker
+WorkingDirectory=/opt/stocker
+EnvironmentFile=/etc/stocker/stocker.env
+ExecStart=/opt/stocker/bin/stocker-api
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

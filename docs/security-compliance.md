@@ -20,17 +20,21 @@
 - [x] No CAPTCHA, authentication, paywall, robots, access-control or rate-limit bypass.
 - [x] Alert rules and histories are owner-filtered; targeted SSE delivery is isolated by authenticated user ID, and quiet-hour delivery rechecks pause/revocation state.
 - [x] Only in-app notifications are active; external channel preferences never collect or transmit a destination without a configured consent workflow.
+- [x] Production startup fails closed unless MongoDB and Redis transports are encrypted and refresh cookies are Secure.
+- [x] Aggregate-only Prometheus metrics, bounded-cardinality latency histograms, W3C trace correlation, SLO alert rules and a Grafana dashboard are included.
+- [x] Retention automation, checksum-verified backup/isolated restore scripts, a native deployment runbook, load tests and CycloneDX SBOM generation are included.
+- [x] Event-time evaluation rejects and persists look-ahead leakage before computing accuracy or precision.
 
 ## Required before internet production
 
 - [ ] Replace local passwords with secret-manager values and enable TLS/Secure cookies/HSTS.
 - [ ] Add synchronizer/double-submit CSRF tokens if SameSite boundaries or cross-site clients change; Phase 1 validates browser Origin for refresh/logout.
 - [ ] Add route-level RBAC enforcement for admin/analyst endpoints and record privileged audit events.
-- [ ] Configure OpenTelemetry exporter, Prometheus scraping, SLO alerts, trace sampling and PII redaction tests.
+- [ ] Connect the implemented OTLP exporter and Prometheus/SLO assets to an authenticated production backend; choose production trace sampling and complete PII redaction tests.
 - [ ] Add email verification, reset flow, credential-stuffing protection and session/device management.
-- [ ] Enable managed MongoDB continuous backup, encrypted MongoDB/Redis transport and key rotation.
-- [ ] Run SAST, `govulncheck`, `npm audit`, SBOM generation, secret scanning and signed container scanning in CI.
+- [ ] Enable managed MongoDB continuous backup, vault encryption/access logs and the documented 90-day key rotation process.
+- [ ] Run the supplied SAST, `govulncheck`, `npm audit`, SBOM and secret-scan gate in CI and retain signed release evidence (container scanning is not applicable to the native deployment).
 - [ ] Complete provider terms/DPA/data-residency reviews and document user consent/unsubscribe flows.
 - [ ] Penetration-test auth, IDOR, SSE authorization, admin actions, parser sandboxing, SSRF and prompt injection.
-- [ ] Add retention/deletion automation for raw documents, accounts, notification details and audit data.
+- [ ] Automate the documented operator-reviewed account-erasure workflow; scheduled retention for raw documents, sessions, notification details and evaluation audit summaries is implemented.
 - [ ] Establish incident response, correction/retraction handling and financial-content review procedures.

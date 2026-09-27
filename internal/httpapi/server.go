@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,21 +20,26 @@ import (
 	"github.com/stocker-app/stocker/internal/auth"
 	"github.com/stocker-app/stocker/internal/config"
 	"github.com/stocker-app/stocker/internal/domain"
+	"github.com/stocker-app/stocker/internal/evaluation"
 	"github.com/stocker-app/stocker/internal/market"
+	"github.com/stocker-app/stocker/internal/observability"
 	"github.com/stocker-app/stocker/internal/store"
 )
 
 type Server struct {
-	cfg      config.Config
-	db       *store.Mongo
-	redis    *redis.Client
-	auth     *auth.Service
-	hub      *Hub
-	market   *market.Service
-	alerting *alerting.Service
-	log      *slog.Logger
-	router   *gin.Engine
-	cancel   context.CancelFunc
+	cfg        config.Config
+	db         *store.Mongo
+	redis      *redis.Client
+	auth       *auth.Service
+	hub        *Hub
+	market     *market.Service
+	alerting   *alerting.Service
+	evaluation *evaluation.Service
+	telemetry  *observability.Registry
+	tracing    *observability.Tracing
+	log        *slog.Logger
+	router     *gin.Engine
+	cancel     context.CancelFunc
 }
 type ctxKey string
 
@@ -45,26 +52,39 @@ func New(cfg config.Config, db *store.Mongo, rdb *redis.Client, log *slog.Logger
 		log.Error("market_service_initialization_failed", "error", err)
 	}
 	hub := NewHub()
-	s := &Server{cfg: cfg, db: db, redis: rdb, auth: auth.New(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, db), hub: hub, market: marketService, log: log, cancel: cancel}
+	s := &Server{cfg: cfg, db: db, redis: rdb, auth: auth.New(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, db), hub: hub, market: marketService, telemetry: observability.NewRegistry(), log: log, cancel: cancel}
+	s.tracing, err = observability.NewTracing(ctx, cfg.OTELExporterEndpoint)
+	if err != nil {
+		log.Error("tracing_initialization_failed", "error", err)
+		s.tracing, _ = observability.NewTracing(ctx, "")
+	}
 	var refresher alerting.Refresher
 	if marketService != nil {
 		refresher = func(ctx context.Context, symbol string) { marketService.RefreshBestEffort(ctx, symbol) }
 	}
 	s.alerting = alerting.NewService(db, log, func(userID string, event domain.AlertEvent) { hub.PublishTo(userID, "alert.created", event) }, refresher, cfg.AlertEvaluationInterval)
+	s.evaluation = evaluation.NewService(db)
 	s.router = s.routes()
 	go s.bridgeNewsEvents(ctx)
 	go s.alerting.Run(ctx)
 	return s
 }
 func (s *Server) Handler() http.Handler { return s.router }
-func (s *Server) Close()                { s.cancel() }
+func (s *Server) Close() {
+	s.cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.tracing.Shutdown(ctx); err != nil {
+		s.log.Warn("tracing_shutdown_failed", "error", err)
+	}
+}
 
 func (s *Server) routes() *gin.Engine {
 	if s.cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
-	r.Use(gin.Recovery(), s.requestLog(), s.securityHeaders(), cors.New(cors.Config{AllowOrigins: []string{s.cfg.WebOrigin}, AllowMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"}, AllowHeaders: []string{"Authorization", "Content-Type", "X-CSRF-Token"}, ExposeHeaders: []string{"X-Request-ID"}, AllowCredentials: true, MaxAge: 12 * time.Hour}), s.rateLimit())
+	r.Use(s.traceContext(), s.requestLog(), gin.Recovery(), s.securityHeaders(), cors.New(cors.Config{AllowOrigins: []string{s.cfg.WebOrigin}, AllowMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"}, AllowHeaders: []string{"Authorization", "Content-Type", "X-CSRF-Token", "Traceparent"}, ExposeHeaders: []string{"X-Request-ID", "X-Trace-ID", "Traceparent"}, AllowCredentials: true, MaxAge: 12 * time.Hour}), s.rateLimit())
 	r.GET("/health/live", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 	r.GET("/health/ready", s.ready)
 	r.GET("/metrics", s.metrics)
@@ -104,6 +124,7 @@ func (s *Server) routes() *gin.Engine {
 	protected.PATCH("/alert-rules/:id", s.updateAlertRule)
 	protected.DELETE("/alert-rules/:id", s.deleteAlertRule)
 	protected.GET("/briefings", s.briefings)
+	protected.GET("/evaluation/report", s.evaluationReport)
 	return r
 }
 func (s *Server) ready(c *gin.Context) {
@@ -125,15 +146,67 @@ func (s *Server) ready(c *gin.Context) {
 }
 func (s *Server) metrics(c *gin.Context) {
 	subscribers, dropped := s.hub.Stats()
+	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second)
+	defer cancel()
+	operational, err := s.db.OperationalMetrics(ctx)
+	if err != nil {
+		s.log.Warn("operational_metrics_unavailable", "error", err)
+	}
 	c.Header("Content-Type", "text/plain; version=0.0.4")
-	c.String(200, "# HELP stocker_up Whether the API is running.\n# TYPE stocker_up gauge\nstocker_up 1\n# HELP stocker_sse_subscribers Current authenticated SSE subscribers.\n# TYPE stocker_sse_subscribers gauge\nstocker_sse_subscribers %d\n# HELP stocker_sse_dropped_events Events dropped for slow subscribers.\n# TYPE stocker_sse_dropped_events counter\nstocker_sse_dropped_events %d\n", subscribers, dropped)
+	c.String(200, "# HELP stocker_up Whether the API is running.\n# TYPE stocker_up gauge\nstocker_up 1\n# HELP stocker_sse_subscribers Current authenticated SSE subscribers.\n# TYPE stocker_sse_subscribers gauge\nstocker_sse_subscribers %d\n# HELP stocker_sse_dropped_events Events dropped for slow subscribers.\n# TYPE stocker_sse_dropped_events counter\nstocker_sse_dropped_events %d\n%s%s", subscribers, dropped, operational.Prometheus(), s.telemetry.Prometheus())
 }
 func (s *Server) requestLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
-		s.log.Info("http_request", "method", c.Request.Method, "path", c.FullPath(), "status", c.Writer.Status(), "duration_ms", time.Since(start).Milliseconds(), "client_ip", c.ClientIP())
+		duration := time.Since(start)
+		s.telemetry.ObserveRequest(c.Request.Method, c.FullPath(), c.Writer.Status(), duration)
+		s.log.Info("http_request", "method", c.Request.Method, "path", c.FullPath(), "status", c.Writer.Status(), "duration_ms", duration.Milliseconds(), "client_ip", c.ClientIP(), "trace_id", c.GetString("trace_id"), "span_id", c.GetString("span_id"))
 	}
+}
+
+func (s *Server) traceContext() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requestContext, span := s.tracing.StartHTTP(c.Request.Context(), c.Request.Header, c.Request.Method, c.Request.URL.Path)
+		c.Request = c.Request.WithContext(requestContext)
+		traceID, spanID := span.IDs()
+		if traceID == "" {
+			traceID = incomingTraceID(c.GetHeader("traceparent"))
+		}
+		if traceID == "" {
+			traceID = randomHex(16)
+		}
+		if spanID == "" {
+			spanID = randomHex(8)
+		}
+		requestID := randomHex(12)
+		c.Set("trace_id", traceID)
+		c.Set("span_id", spanID)
+		c.Header("X-Request-ID", requestID)
+		c.Header("X-Trace-ID", traceID)
+		c.Header("traceparent", "00-"+traceID+"-"+spanID+"-01")
+		c.Next()
+		span.Finish(c.Request.Method, c.FullPath(), c.Writer.Status())
+	}
+}
+
+func incomingTraceID(value string) string {
+	parts := strings.Split(strings.TrimSpace(value), "-")
+	if len(parts) != 4 || parts[0] != "00" || len(parts[1]) != 32 || len(parts[2]) != 16 || len(parts[3]) != 2 || parts[1] == strings.Repeat("0", 32) {
+		return ""
+	}
+	if _, err := hex.DecodeString(parts[1] + parts[2] + parts[3]); err != nil {
+		return ""
+	}
+	return strings.ToLower(parts[1])
+}
+
+func randomHex(bytes int) string {
+	buffer := make([]byte, bytes)
+	if _, err := rand.Read(buffer); err != nil {
+		return fmt.Sprintf("%0*x", bytes*2, time.Now().UnixNano())
+	}
+	return hex.EncodeToString(buffer)
 }
 func (s *Server) securityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -884,6 +957,33 @@ func (s *Server) briefings(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": []domain.Briefing{briefing}, "meta": gin.H{"evidenceOnly": true, "availableKinds": []string{"morning", "closing", "daily"}}})
+}
+
+func (s *Server) evaluationReport(c *gin.Context) {
+	asOf := time.Now().UTC()
+	if value := strings.TrimSpace(c.Query("asOf")); value != "" {
+		parsed, err := time.Parse(time.RFC3339, value)
+		if err != nil {
+			bad(c, errors.New("asOf must be an RFC3339 timestamp"))
+			return
+		}
+		asOf = parsed.UTC()
+	}
+	limit := 5000
+	if value := c.Query("limit"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 1 || parsed > 10000 {
+			bad(c, errors.New("limit must be between 1 and 10000"))
+			return
+		}
+		limit = parsed
+	}
+	report, err := s.evaluation.Report(c, asOf, limit)
+	if err != nil {
+		fail(c, s.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": report, "meta": gin.H{"eventTime": true, "lookAheadSafe": len(report.LeakageViolations) == 0, "disclaimer": "Historical evaluation is descriptive and does not guarantee future performance."}})
 }
 func bad(c *gin.Context, err error) {
 	c.JSON(400, gin.H{"error": "invalid request", "detail": err.Error()})

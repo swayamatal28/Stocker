@@ -171,6 +171,7 @@ export const api = {
     updateAlertRule: (id, patch) => request(`/alert-rules/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) }),
     deleteAlertRule: (id) => request(`/alert-rules/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     briefings: (kind = 'daily') => request(`/briefings?kind=${encodeURIComponent(kind)}`),
+    evaluationReport: (asOf) => request(`/evaluation/report${query({ asOf })}`),
     login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
     register: (email, password, displayName) => request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName }) }),
     news: (filters) => request(`/news${query(filters)}`),

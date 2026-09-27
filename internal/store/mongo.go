@@ -56,6 +56,7 @@ type securityDocument struct {
 }
 
 type quoteDocument struct {
+	ID            bson.ObjectID `bson:"_id,omitempty"`
 	SecurityID    bson.ObjectID `bson:"security_id"`
 	LastPrice     float64       `bson:"last_price"`
 	Open          float64       `bson:"open,omitempty"`
@@ -245,6 +246,12 @@ func (m *Mongo) EnsureIndexes(ctx context.Context) error {
 			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "kind", Value: 1}, {Key: "period_key", Value: 1}}, Options: options.Index().SetUnique(true)},
 			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "generated_at", Value: -1}}},
 		},
+		"signal_outcomes": {
+			{Keys: bson.D{{Key: "signal_id", Value: 1}, {Key: "version", Value: 1}, {Key: "exit_as_of", Value: 1}}, Options: options.Index().SetUnique(true)},
+			{Keys: bson.D{{Key: "evaluated_at", Value: -1}}},
+		},
+		"evaluation_leakage": {{Keys: bson.D{{Key: "signal_id", Value: 1}, {Key: "field", Value: 1}, {Key: "version", Value: 1}, {Key: "available_at", Value: 1}}, Options: options.Index().SetUnique(true)}},
+		"evaluation_runs":    {{Keys: bson.D{{Key: "as_of", Value: -1}, {Key: "version", Value: 1}}}},
 	}
 	for collection, models := range indexes {
 		if _, err := m.DB.Collection(collection).Indexes().CreateMany(ctx, models); err != nil {

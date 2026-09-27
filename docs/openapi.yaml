@@ -11,6 +11,7 @@ tags:
   - {name: News}
   - {name: Watchlist}
   - {name: Alerts}
+  - {name: Evaluation}
   - {name: System}
 paths:
   /auth/register:
@@ -125,6 +126,17 @@ paths:
       operationId: getBriefing
       parameters: [{name: kind, in: query, schema: {enum: [morning, closing, daily], default: daily}}]
       responses: {'200': {description: Evidence-grounded watchlist briefing}}
+  /evaluation/report:
+    get:
+      tags: [Evaluation]
+      security: [{bearerAuth: []}]
+      operationId: getEvaluationReport
+      parameters:
+        - {name: asOf, in: query, schema: {type: string, format: date-time}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 10000, default: 5000}}
+      responses:
+        '200': {description: Event-time historical outcomes, leakage violations, and accuracy/precision slices by confidence band, category, sector and horizon}
+        '401': {$ref: '#/components/responses/Unauthorized'}
   /system/source-health:
     get: {tags: [System], operationId: getSourceHealth, responses: {'200': {description: Polling and parser health}}}
   /stream:

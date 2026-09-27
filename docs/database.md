@@ -72,3 +72,6 @@ Story clusters currently use a stable `cluster_id` on each article rather than a
 - `alert_events` stores the exact rule snapshot, triggering values, source timestamp, cited evidence, delivery/read state and a unique SHA-256 deduplication key built from user, rule and cluster or cooldown bucket.
 - `notification_deliveries` enforces one delivery per alert event and channel. Only `in_app` is active; external destinations are neither collected nor contacted.
 - `briefings` stores one evidence-grounded morning, closing or daily watchlist snapshot per user and UTC date. Items cite either an immutable signal source or a timestamped market-provider snapshot.
+- `signal_outcomes` stores idempotent, versioned event-time outcomes joined to the first eligible post-horizon quote.
+- `evaluation_leakage` records features whose availability timestamp followed the simulated decision; affected signals are excluded from scoring.
+- `evaluation_runs` stores report parameters, counts and dimension slices for reproducibility and audit retention.

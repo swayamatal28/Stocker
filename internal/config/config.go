@@ -56,6 +56,11 @@ type Config struct {
 	MarketRequestTimeout         time.Duration
 	MarketRefreshInterval        time.Duration
 	AlertEvaluationInterval      time.Duration
+	MaintenanceInterval          time.Duration
+	AlertRetentionDays           int
+	BriefingRetentionDays        int
+	AuditRetentionDays           int
+	OTELExporterEndpoint         string
 }
 
 func Load() (Config, error) {
@@ -97,6 +102,10 @@ func Load() (Config, error) {
 		MarketProvider:               env("MARKET_PROVIDER", "fixture"),
 		MarketEndpoint:               env("MARKET_ENDPOINT", "http://65.0.104.9"),
 		MarketAllowInsecureHTTP:      envBool("MARKET_ALLOW_INSECURE_HTTP", false),
+		AlertRetentionDays:           envInt("ALERT_RETENTION_DAYS", 365),
+		BriefingRetentionDays:        envInt("BRIEFING_RETENTION_DAYS", 90),
+		AuditRetentionDays:           envInt("AUDIT_RETENTION_DAYS", 730),
+		OTELExporterEndpoint:         env("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 	}
 	if c.MockProviders {
 		c.IngestAutomatedAccessAllowed = true
@@ -137,8 +146,14 @@ func Load() (Config, error) {
 	if c.AlertEvaluationInterval, err = time.ParseDuration(env("ALERT_EVALUATION_INTERVAL", "1m")); err != nil {
 		return c, fmt.Errorf("ALERT_EVALUATION_INTERVAL: %w", err)
 	}
+	if c.MaintenanceInterval, err = time.ParseDuration(env("MAINTENANCE_INTERVAL", "24h")); err != nil {
+		return c, fmt.Errorf("MAINTENANCE_INTERVAL: %w", err)
+	}
 	if c.AlertEvaluationInterval < 10*time.Second {
 		return c, fmt.Errorf("ALERT_EVALUATION_INTERVAL must be at least 10s")
+	}
+	if c.MaintenanceInterval < time.Hour || c.AlertRetentionDays < 1 || c.BriefingRetentionDays < 1 || c.AuditRetentionDays < 1 {
+		return c, fmt.Errorf("maintenance interval and retention periods are invalid")
 	}
 	if value := os.Getenv("INGEST_POLICY_EXPIRES_AT"); value != "" {
 		parsed, parseErr := time.Parse(time.RFC3339, value)
@@ -149,6 +164,33 @@ func Load() (Config, error) {
 	}
 	if c.Environment == "production" && len(c.JWTSecret) < 32 {
 		return c, fmt.Errorf("JWT_SECRET must contain at least 32 characters in production")
+	}
+	if c.Environment == "production" {
+		mongoSecure := strings.HasPrefix(strings.ToLower(c.MongoDBURI), "mongodb+srv://") || strings.Contains(strings.ToLower(c.MongoDBURI), "tls=true")
+		if !mongoSecure {
+			return c, fmt.Errorf("MONGODB_URI must enable TLS in production")
+		}
+		if !strings.HasPrefix(strings.ToLower(c.RedisURL), "rediss://") {
+			return c, fmt.Errorf("REDIS_URL must use TLS (rediss://) in production")
+		}
+		if !c.RedisRequired {
+			return c, fmt.Errorf("REDIS_REQUIRED must be true in production")
+		}
+		if !c.CookieSecure {
+			return c, fmt.Errorf("COOKIE_SECURE must be true in production")
+		}
+		if strings.TrimSpace(c.OTELExporterEndpoint) == "" {
+			return c, fmt.Errorf("OTEL_EXPORTER_OTLP_ENDPOINT is required in production")
+		}
+	}
+	if c.OTELExporterEndpoint != "" {
+		endpoint, parseErr := url.Parse(c.OTELExporterEndpoint)
+		if parseErr != nil || endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") {
+			return c, fmt.Errorf("OTEL_EXPORTER_OTLP_ENDPOINT must be an absolute HTTP(S) URL")
+		}
+		if c.Environment == "production" && endpoint.Scheme != "https" {
+			return c, fmt.Errorf("OTEL_EXPORTER_OTLP_ENDPOINT must use HTTPS in production")
+		}
 	}
 	if c.AIProvider != "local-deterministic" && c.AIProvider != "http-json" {
 		return c, fmt.Errorf("AI_PROVIDER must be local-deterministic or http-json")

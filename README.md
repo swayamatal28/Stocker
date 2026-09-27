@@ -14,6 +14,7 @@ STOCKER is an evidence-first research application for NSE/BSE-listed companies. 
 - Phase 3 deterministic local intelligence provider plus an opt-in approved HTTP JSON provider, language detection/translation boundary, entity linking, prompt/model/cost metadata, dual schema validation, numeric grounding, append-only analyses/evidence/signals, Redis consumer worker, and explainability UI.
 - Phase 4 provider-neutral market service with a credential-free public-API adapter, current/day/52-week quote fields, period/unit/basis-aware fundamentals, OLA Electric identity and alias linking, sectors, breadth, movers, evidence-derived events, peers, risk flags, and a stock-detail UI with up to 10 deduplicated articles. Candles and charts are intentionally excluded from the revised scope.
 - Phase 5 watchlist-scoped event and market-threshold rules, confidence/severity gates, cluster/rule/cooldown deduplication, quiet-hour deferral, user-isolated in-app/SSE delivery, inspectable evidence, pause/revoke/read controls, and morning/closing/daily briefings.
+- Phase 6 event-time backtesting with explicit leakage rejection and sliced accuracy/precision, aggregate Prometheus metrics and trace correlation, SLO/dashboard assets, ingestion/SSE load tests, retention automation, CycloneDX SBOM/security checks, and native backup/restore/deployment runbooks.
 - Versioned `signal-v2` scoring engine with evidence gates, contradiction handling, source citations, freshness, and immutable input snapshots.
 
 The mock provider is intentional: no third-party site is scraped and no unlicensed market values are presented as live. See [assumptions and source licensing](docs/assumptions-and-sources.md).
@@ -64,6 +65,9 @@ $env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase1Aut
 $env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/intelligence -run TestCollectedItemProducesPersistedAnalysisAndSignal -count=1 -v
 $env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase4MarketAPIs -count=1 -v
 $env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase5RuleTriggersOneInspectableUserIsolatedAlert -count=1 -v
+$env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase6EventTimeEvaluationRejectsLeakedSignal -count=1 -v
+./scripts/run-load.ps1 -BenchTime 5s
+./scripts/security-check.ps1 -RequireExternalTools
 ```
 
 ## Documentation index
@@ -77,7 +81,11 @@ $env:STOCKER_INTEGRATION_TEST='1'; go test ./internal/httpapi -run TestPhase5Rul
 - [Security/compliance checklist](docs/security-compliance.md)
 - [API contract](docs/openapi.yaml)
 - [Native operations, backup, and recovery](docs/operations.md)
+- [Event-time model evaluation](docs/evaluation.md)
+- [SLOs and alert policy](docs/slo.md)
+- [Load and capacity testing](docs/load-testing.md)
+- [Phase 6 security review](docs/security-review.md)
 
 ## Delivery phases
 
-Phases 1–5 are implemented as working vertical slices under the revised no-candles/no-charts scope. Phase 3 can turn a collected, linked item into a schema-valid, source-cited analysis and append-only signal using the offline provider. Phase 4 defaults to transparent synthetic fixtures; the experimental public market adapter is opt-in because its upstream data rights and availability are not guaranteed. Phase 5 delivers evidence-backed in-app monitoring without collecting external notification destinations. Phase 6 remains future work.
+Phases 1–6 are implemented as working vertical slices under the revised no-candles/no-charts scope. Phase 3 can turn a collected, linked item into a schema-valid, source-cited analysis and append-only signal using the offline provider. Phase 4 defaults to transparent synthetic fixtures; the experimental public market adapter is opt-in because its upstream data rights and availability are not guaranteed. Phase 5 delivers evidence-backed in-app monitoring without collecting external notification destinations. Phase 6 adds repeatable evaluation, observability, load, security, lifecycle, recovery and native deployment evidence; external penetration testing and managed production services remain operator launch gates.

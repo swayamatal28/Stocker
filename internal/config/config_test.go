@@ -30,6 +30,11 @@ func TestMockIngestionUsesProjectOwnedApproval(t *testing.T) {
 func TestHTTPAIProviderRequiresHTTPSInProduction(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("JWT_SECRET", "this-is-a-production-length-secret-value")
+	t.Setenv("MONGODB_URI", "mongodb+srv://database.example.com/stocker")
+	t.Setenv("REDIS_URL", "rediss://cache.example.com:6380/0")
+	t.Setenv("REDIS_REQUIRED", "true")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "https://telemetry.example.com")
+	t.Setenv("COOKIE_SECURE", "true")
 	t.Setenv("AI_PROVIDER", "http-json")
 	t.Setenv("AI_MODEL", "approved-model")
 	t.Setenv("AI_ENDPOINT", "http://models.example.com/analyse")
@@ -39,6 +44,24 @@ func TestHTTPAIProviderRequiresHTTPSInProduction(t *testing.T) {
 	t.Setenv("AI_ENDPOINT", "https://models.example.com/analyse")
 	if _, err := Load(); err != nil {
 		t.Fatalf("expected approved HTTPS endpoint: %v", err)
+	}
+}
+
+func TestProductionRequiresEncryptedInfrastructureConnections(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("JWT_SECRET", "this-is-a-production-length-secret-value")
+	t.Setenv("COOKIE_SECURE", "true")
+	t.Setenv("MONGODB_URI", "mongodb://database.example.com/stocker")
+	t.Setenv("REDIS_URL", "rediss://cache.example.com:6380/0")
+	t.Setenv("REDIS_REQUIRED", "true")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "https://telemetry.example.com")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected plaintext MongoDB to fail closed")
+	}
+	t.Setenv("MONGODB_URI", "mongodb://database.example.com/stocker?tls=true")
+	t.Setenv("REDIS_URL", "redis://cache.example.com:6379/0")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected plaintext Redis to fail closed")
 	}
 }
 

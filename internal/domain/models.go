@@ -216,6 +216,75 @@ type Briefing struct {
 	Synthetic   bool           `json:"synthetic"`
 }
 
+type BacktestCase struct {
+	SignalID        string
+	Symbol          string
+	Sector          string
+	Category        string
+	Horizon         string
+	Strength        int
+	Confidence      int
+	DecisionAt      time.Time
+	TargetAt        time.Time
+	EntryPrice      float64
+	ExitPrice       float64
+	ExitAsOf        time.Time
+	ExitAvailableAt time.Time
+	FeatureTimes    map[string]time.Time
+}
+
+type SignalOutcome struct {
+	SignalID       string    `json:"signalId" bson:"signal_id"`
+	Symbol         string    `json:"symbol" bson:"symbol"`
+	Sector         string    `json:"sector" bson:"sector"`
+	Category       string    `json:"category" bson:"category"`
+	Horizon        string    `json:"horizon" bson:"horizon"`
+	ConfidenceBand string    `json:"confidenceBand" bson:"confidence_band"`
+	Strength       int       `json:"strength" bson:"strength"`
+	Confidence     int       `json:"confidence" bson:"confidence"`
+	DecisionAt     time.Time `json:"decisionAt" bson:"decision_at"`
+	TargetAt       time.Time `json:"targetAt" bson:"target_at"`
+	ExitAsOf       time.Time `json:"exitAsOf" bson:"exit_as_of"`
+	EntryPrice     float64   `json:"entryPrice" bson:"entry_price"`
+	ExitPrice      float64   `json:"exitPrice" bson:"exit_price"`
+	ReturnPercent  float64   `json:"returnPercent" bson:"return_percent"`
+	Prediction     string    `json:"prediction" bson:"prediction"`
+	Actual         string    `json:"actual" bson:"actual"`
+	Correct        bool      `json:"correct" bson:"correct"`
+	EvaluatedAt    time.Time `json:"evaluatedAt" bson:"evaluated_at"`
+	Version        string    `json:"version" bson:"version"`
+}
+
+type LeakageViolation struct {
+	SignalID    string    `json:"signalId" bson:"signal_id"`
+	Field       string    `json:"field" bson:"field"`
+	AvailableAt time.Time `json:"availableAt" bson:"available_at"`
+	DecisionAt  time.Time `json:"decisionAt" bson:"decision_at"`
+	Reason      string    `json:"reason" bson:"reason"`
+}
+
+type EvaluationSlice struct {
+	Dimension         string  `json:"dimension"`
+	Value             string  `json:"value"`
+	Evaluated         int     `json:"evaluated"`
+	Correct           int     `json:"correct"`
+	PredictedPositive int     `json:"predictedPositive"`
+	TruePositive      int     `json:"truePositive"`
+	Accuracy          float64 `json:"accuracy"`
+	Precision         float64 `json:"precision"`
+}
+
+type EvaluationReport struct {
+	Version           string             `json:"version"`
+	AsOf              time.Time          `json:"asOf"`
+	CandidateSignals  int                `json:"candidateSignals"`
+	EvaluatedSignals  int                `json:"evaluatedSignals"`
+	PendingSignals    int                `json:"pendingSignals"`
+	LeakageViolations []LeakageViolation `json:"leakageViolations"`
+	Outcomes          []SignalOutcome    `json:"outcomes"`
+	Slices            []EvaluationSlice  `json:"slices"`
+}
+
 type User struct {
 	ID, Email, DisplayName, PasswordHash, Role string
 	CreatedAt                                  time.Time

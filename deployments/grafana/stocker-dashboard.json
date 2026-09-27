@@ -1,0 +1,14 @@
+{
+  "title": "STOCKER Operations",
+  "schemaVersion": 39,
+  "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {"type": "stat", "title": "API up", "targets": [{"expr": "stocker_up"}], "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4}},
+    {"type": "timeseries", "title": "Request rate", "targets": [{"expr": "sum by (status) (rate(stocker_http_requests_total[5m]))", "legendFormat": "{{status}}"}], "gridPos": {"x": 4, "y": 0, "w": 10, "h": 7}},
+    {"type": "timeseries", "title": "p95 latency", "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(stocker_http_request_duration_seconds_bucket[5m])))"}], "gridPos": {"x": 14, "y": 0, "w": 10, "h": 7}},
+    {"type": "stat", "title": "Dead letters", "targets": [{"expr": "stocker_ingestion_dead_letters + stocker_analysis_dead_letters"}], "gridPos": {"x": 0, "y": 7, "w": 6, "h": 4}},
+    {"type": "stat", "title": "Leakage findings", "targets": [{"expr": "stocker_evaluation_leakage_violations"}], "gridPos": {"x": 6, "y": 7, "w": 6, "h": 4}},
+    {"type": "stat", "title": "Unhealthy sources", "targets": [{"expr": "stocker_sources_unhealthy"}], "gridPos": {"x": 12, "y": 7, "w": 6, "h": 4}},
+    {"type": "stat", "title": "AI daily spend (cents)", "targets": [{"expr": "stocker_ai_daily_spend_cents"}], "gridPos": {"x": 18, "y": 7, "w": 6, "h": 4}}
+  ]
+}

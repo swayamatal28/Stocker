@@ -1,0 +1,7 @@
+# Phase 6 security review
+
+The automated gate is `scripts/security-check.ps1 -RequireExternalTools`. It runs Go static analysis, the npm production dependency audit, tracked-file/known-token secret checks, `govulncheck`, and emits a CycloneDX 1.5 SBOM. CI must retain output and the SBOM and fail on any unresolved high/critical finding. The lighter local mode warns when `govulncheck` is unavailable.
+
+Regression coverage exercises authentication, trusted-origin session actions, cross-user alert IDOR, targeted SSE isolation, request input validation, source policy gates, AI schema/numeric grounding, and event-time leakage rejection. Before an internet launch, an independent penetration test must additionally cover credential stuffing/reset flows, SSRF and parser abuse, admin/RBAC paths, prompt injection, reverse-proxy/CSP configuration and infrastructure permissions. Record scope, tooling, findings, owner, remediation commit and retest evidence; automated tests are not a substitute for that review.
+
+Production configuration requires TLS for MongoDB and Redis, Secure refresh cookies and a 32+ character JWT secret. No market-provider request carries environment secrets, cookies, user IDs or watchlists. Metrics are aggregate-only. Backup archives must be encrypted at rest by the vault and access logged. Remaining launch dependencies are email verification/reset/device management, privileged-role audit enforcement, a managed telemetry backend, formal provider/data-residency approvals and the external penetration test.
