@@ -24,16 +24,16 @@ The mock provider is intentional: no third-party site is scraped and no unlicens
 On Windows/VS Code, the complete local stack now starts with only two terminals. The backend launcher imports `.env` once, starts `mongod`, starts Redis when `redis-server` is installed, builds the API/workers, and supervises them:
 
 ```powershell
-.\run-backend.ps1
+go run main.go
 ```
 
 In the second terminal, start the web application:
 
 ```powershell
-.\run-frontend.ps1
+npm run dev
 ```
 
-Open <http://localhost:5173>. If PowerShell blocks local scripts for the current process, first run `Set-ExecutionPolicy -Scope Process Bypass` in each terminal. Runtime data and logs stay in ignored `data/` and `.cache/runtime/` directories.
+Open <http://localhost:5173>. The Go launcher invokes the signed-in Windows PowerShell process with a process-scoped execution-policy bypass, so no separate `.env` or PowerShell setup command is needed. Runtime data and logs stay in ignored `data/` and `.cache/runtime/` directories. The underlying `run-backend.ps1` and `run-frontend.ps1` launchers remain available for diagnostics.
 
 MongoDB must be installed with `mongod` available in `PATH`; the launcher creates `data/db` and starts it automatically when port 27017 is free. Redis on port 6379 is optional for the basic development UI. When `redis-server` is installed, the same backend command starts it and enables ingestion, analysis queues, distributed rate limiting and live events. The default `local-deterministic` AI provider is offline, costs nothing and sends no content externally.
 
