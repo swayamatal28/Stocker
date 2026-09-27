@@ -21,25 +21,21 @@ The mock provider is intentional: no third-party site is scraped and no unlicens
 
 ## Run locally
 
-Install and start MongoDB as a native service, then set the values from `.env.example` in your shell. The default expects MongoDB on `localhost:27017`. Redis on `localhost:6379` is optional for the basic development UI and required for ingestion, distributed rate limiting, queues, and production (`REDIS_REQUIRED=true`).
+On Windows/VS Code, the complete local stack now starts with only two terminals. The backend launcher imports `.env` once, starts `mongod`, starts Redis when `redis-server` is installed, builds the API/workers, and supervises them:
 
-```bash
-go run ./apps/api
-npm --prefix apps/web install
-npm --prefix apps/web run dev
+```powershell
+.\run-backend.ps1
 ```
 
-The API seeds one project-owned evidence fixture in mock mode. In a third terminal, start the ingestion worker to exercise polling, Redis Streams delivery, source cursors, and ongoing collection:
+In the second terminal, start the web application:
 
-```bash
-go run ./workers/ingestion
+```powershell
+.\run-frontend.ps1
 ```
 
-With Redis running, start the Phase 3 consumer in another terminal. The default `local-deterministic` provider is offline, costs nothing, and sends no content externally:
+Open <http://localhost:5173>. If PowerShell blocks local scripts for the current process, first run `Set-ExecutionPolicy -Scope Process Bypass` in each terminal. Runtime data and logs stay in ignored `data/` and `.cache/runtime/` directories.
 
-```bash
-go run ./workers/analysis
-```
+MongoDB must be installed with `mongod` available in `PATH`; the launcher creates `data/db` and starts it automatically when port 27017 is free. Redis on port 6379 is optional for the basic development UI. When `redis-server` is installed, the same backend command starts it and enables ingestion, analysis queues, distributed rate limiting and live events. The default `local-deterministic` AI provider is offline, costs nothing and sends no content externally.
 
 Phase 4 also defaults to the offline fixture provider. To opt into the supplied experimental public endpoint, set `MARKET_PROVIDER=indian-stock-api` and explicitly set `MARKET_ALLOW_INSECURE_HTTP=true`. No API key is used or forwarded; only public symbols/search terms leave STOCKER. If the endpoint is unavailable, persisted snapshots remain labelled with their original age rather than being presented as fresh.
 
