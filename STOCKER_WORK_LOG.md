@@ -1084,3 +1084,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +150
 - Cumulative LOC: 23,390
 
+## 28 Sep 2026 (Mon)
+
+- Feature: Create native deployment and rollback scripts
+- Recorded commit: `feat(ops): native deployment and rollback scripts`
+- Recorded paths: `deployments/, internal/observability/`
+- Approximate LOC: +156
+- Cumulative LOC: 23,546
+
