@@ -1100,3 +1100,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +176
 - Cumulative LOC: 23,722
 
+## 30 Sep 2026 (Wed)
+
+- Feature: Finalize documentation and the release checklist
+- Recorded commit: `docs(docs): documentation and the release checklist`
+- Recorded paths: `README.md, docs/`
+- Approximate LOC: +60
+- Cumulative LOC: 23,782
+
