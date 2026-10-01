@@ -1108,3 +1108,11 @@ source-code snapshots. The main source branch is intentionally unchanged.
 - Approximate LOC: +60
 - Cumulative LOC: 23,782
 
+## 01 Oct 2026 (Thu)
+
+- Feature: Verify acceptance criteria and publish STOCKER 1.0
+- Recorded commit: `chore(core): acceptance criteria and publish STOCKER 1.0`
+- Recorded paths: `internal/domain/, internal/config/`
+- Approximate LOC: +143
+- Cumulative LOC: 23,925
+
