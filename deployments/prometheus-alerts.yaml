@@ -1,0 +1,37 @@
+groups:
+  - name: stocker
+    rules:
+      - alert: StockerAPIDown
+        expr: stocker_up != 1
+        for: 2m
+        labels: {severity: page}
+        annotations: {summary: "STOCKER API is unavailable"}
+      - alert: StockerHighErrorRate
+        expr: sum(rate(stocker_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(stocker_http_requests_total[5m])), 1) > 0.02
+        for: 10m
+        labels: {severity: page}
+        annotations: {summary: "STOCKER 5xx ratio exceeds 2%"}
+      - alert: StockerHighLatency
+        expr: histogram_quantile(0.95, sum by (le) (rate(stocker_http_request_duration_seconds_bucket[10m]))) > 0.75
+        for: 15m
+        labels: {severity: ticket}
+        annotations: {summary: "STOCKER p95 latency exceeds 750 ms"}
+      - alert: StockerDeadLetters
+        expr: stocker_ingestion_dead_letters + stocker_analysis_dead_letters > 0
+        for: 5m
+        labels: {severity: page}
+        annotations: {summary: "STOCKER has unresolved dead letters"}
+      - alert: StockerLeakageDetected
+        expr: stocker_evaluation_leakage_violations > 0
+        for: 1m
+        labels: {severity: page}
+        annotations: {summary: "Signal evaluation rejected look-ahead leakage"}
+      - alert: StockerSourceUnhealthy
+        expr: stocker_sources_unhealthy > 0
+        for: 10m
+        labels: {severity: page}
+        annotations: {summary: "One or more STOCKER sources are unhealthy"}
+      - alert: StockerSSEDrops
+        expr: increase(stocker_sse_dropped_events[10m]) > 0
+        labels: {severity: ticket}
+        annotations: {summary: "SSE events were dropped for slow subscribers"}
